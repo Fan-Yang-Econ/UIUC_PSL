@@ -1,0 +1,261 @@
+---
+title: "Assignment_1_3539_fanyang3"
+author: "Fan Yang and Xiaozhu Ma"
+date: "2/8/2021"
+output: html_document
+---
+
+Team members: Fan Yang (fanyang3); Xiaozhu Ma (xiaozhu3)
+
+Contribution: Fan did the R coding for data simulation, regressions, and plots. Xiaozhu did the R coding for KNN and Bayes. Xiaozhu also finished the coding in Python independently (we decided to only submit the R version.)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Reference: 
+
+Sample code from TA: https://liangfgithub.github.io/S21/Coding1_SampleCode_S21.nb.html
+
+Instruction: https://piazza.com/class/kjvsp15j2g07ac?cid=43
+
+## Generate Data
+
+```{r cars}
+library(ggplot2)
+library(class)
+set.seed(3539)
+
+
+# coding 2: https://liangfgithub.github.io/S21/Coding2_SampleCode_S21.nb.html
+
+CSIZE = 10;       # number of centers
+P = 2;      
+
+s = 1;      # sd for generating the centers within each class                    
+m1 = matrix(rnorm(CSIZE*P), CSIZE, P)*s + cbind( rep(1,CSIZE), rep(0,CSIZE));
+m0 = matrix(rnorm(CSIZE*P), CSIZE, P)*s + cbind( rep(0,CSIZE), rep(1,CSIZE));
+
+
+generate_data = function(n=100, testing=FALSE){
+  # Randomly allocate the n samples for class 1  to the 10 clusters
+  id1 = sample(1:CSIZE, n, replace = TRUE);
+  # Randomly allocate the n samples for class 1 to the 10 clusters
+  id0 = sample(1:CSIZE, n, replace = TRUE);  
+  
+  s= sqrt(1/5);                               # sd for generating x. 
+  
+  traindata = matrix(rnorm(2*n*P), 2*n, P)*s + rbind(m1[id1,], m0[id0,])
+  df_train = data.frame(traindata)
+  colnames(df_train) = c('X1', 'X2')
+  df_train[,'y_true_value'] = c(rep(1,n), rep(0,n))
+  return (df_train)
+}
+
+```
+
+## Error Rate Function
+
+```{r pressure}
+
+cal_error_rate = function(true_value, estimated_value){
+  df_ = data.frame(true_value=true_value, estimated_value=estimated_value)
+  return(sum(abs(df_['true_value'] != df_['estimated_value'])) / length(true_value))
+}
+```
+
+## Linear and Quadratic
+
+```{r}
+
+quadratic_formula = y_true_value ~ X1 + X2 + I(X1^2) + I(X2^2) + I(X1*X2)
+
+get_lm_model_error_rate = function(df_train, df_test, formula=y_true_value ~ X1 + X2){
+  lm_model = lm(formula = formula, data = df_train)
+  
+  y_result = predict(lm_model, newdata = df_test)
+  y_result[y_result >= 0.5] = 1
+  y_result[y_result < 0.5] = 0
+  df_test['estimated_value'] = y_result
+  
+  true_value = df_test[,'y_true_value']
+  estimated_value = df_test[,'estimated_value']
+  
+  return(cal_error_rate(true_value, estimated_value))
+  
+}
+
+```
+
+## KNN
+```{r}
+
+
+get_knn_cv_error = function(df_train, K){
+  
+  # from TA:
+  # How to compute the 10-fold CV error with a particular K value? First, divide the training data equally into ten folds, then compute the prediction error on each fold, 
+  # using the KNN classifier trained based on the other nine folds.
+  # Specially, in the code below, I set K = 3 and loop over runId = 1:10 to compute the CV error. For example, when runId = 3, we find the indices of samples in the 3rd fold (stored in testSetIndex), 
+  # then train a KNN model without data in testSetIndex and finally form prediction on data in testSetIndex.
+  
+  dataSet = df_train  ## 200-by-3 training data
+  foldNum = 10
+  # K = 20
+  foldSize = floor(nrow(dataSet)/foldNum)  
+  error = 0
+  for(runId in 1:foldNum){
+    testSetIndex = ((runId-1)*foldSize + 1):(ifelse(runId == foldNum, nrow(dataSet), runId*foldSize))
+    trainX = dataSet[-testSetIndex, c('X1', 'X2')]
+    trainY = dataSet[-testSetIndex, ]$y_true_value
+    testX = dataSet[testSetIndex, c('X1' , 'X2')]
+    testY = dataSet[testSetIndex, ]$y_true_value
+    predictY = knn(trainX, testX, trainY, K)
+    error = error + sum(predictY != testY) 
+  }
+  error = error / nrow(dataSet)
+  
+  return(error) 
+}
+
+chose_K_for_KNN = function(df_train, foldNum=10){
+  
+  foldSize = floor(nrow(df_train)/foldNum)
+  KVector = seq(1, (nrow(df_train) - foldSize), 2)
+  
+  K_chosen = 0
+  error = NULL
+  for (K in KVector){
+    error_ = get_knn_cv_error(df_train, K)
+    # print(c(K, error_))
+    if (is.null(error) || (error_ <= error)){
+      error = error_
+      K_chosen = K
+    }
+  }
+  return(K_chosen)
+}
+
+
+get_knn_error = function(df_train, df_test, K_chosen){
+  estimated_value = knn(df_train[, c('X1', 'X2')], df_test[, c('X1', 'X2')], df_train[, 'y_true_value'], K_chosen)
+  return(cal_error_rate(df_test[, 'y_true_value'], estimated_value))
+  
+}
+
+```
+
+## Bayes
+
+``` {r}
+
+
+mixnorm = function(x, centers0, centers1, s){
+  ## return the density ratio for a point x, where each 
+  ## density is a mixture of normal with multiple components
+  d1 = sum(exp(-apply((t(centers1) - x)^2, 2, sum) / (2 * s^2)))
+  d0 = sum(exp(-apply((t(centers0) - x)^2, 2, sum) / (2 * s^2)))
+  return (d1 / d0)
+}
+
+get_bayes_error = function(df_test, centers1=c(1,0), centers0=c(0,1)){
+  
+  list_bayes_rule = c()
+  for (i in seq(1, dim(df_test)[1])){
+    list_bayes_rule = append(list_bayes_rule, 
+                             mixnorm(c(df_test[i, 'X1'], df_test[i, 'X2']), 
+                                     centers1=m1, 
+                                     centers0=m0,
+                                     s=s)
+                             )
+  }
+  
+  
+  list_bayes_rule[list_bayes_rule >= 1] = 1
+  list_bayes_rule[list_bayes_rule < 1] = 0
+  
+  return(cal_error_rate(df_test[, 'y_true_value'], list_bayes_rule))
+  
+}
+```
+
+## Simulation 
+
+```{r}
+
+df_error_wide = data.frame()
+list_k_chosen = c()
+for (i in seq(1, 20)){
+  
+  df_train= generate_data(100)
+  df_test = generate_data(5000)
+  
+  get_lm_model_error_rate(df_train, df_train)
+  get_lm_model_error_rate(df_train, df_train, formula=quadratic_formula)
+  
+  error_bayes = c(
+    train_error = get_bayes_error(df_train, centers1=c(1,0), centers0=c(0,1)),
+    test_error = get_bayes_error(df_test, centers1=NULL, centers0=NULL),
+    mode = 'Bayes'
+  )
+  
+  error_linear = c(
+    train_error = get_lm_model_error_rate(df_train, df_train),
+    test_error = get_lm_model_error_rate(df_train, df_test),
+    mode = 'Linear'
+  )
+  
+  error_quadratic = c(
+    train_error = get_lm_model_error_rate(df_train, df_train, formula=quadratic_formula),
+    test_error = get_lm_model_error_rate(df_train, df_test, formula=quadratic_formula),
+    mode = 'Quadratic'
+  )
+
+  K_chosen = chose_K_for_KNN(df_train)
+  
+  error_KNN = c(
+    train_error = get_knn_error(df_train, df_train, K_chosen),
+    test_error = get_knn_error(df_train, df_test, K_chosen),
+    mode = 'KNN'
+  )
+  list_k_chosen = append(list_k_chosen, K_chosen)
+  
+  df_ = rbind(
+    error_bayes,
+    error_linear,
+    error_quadratic,
+    error_KNN
+  )
+  
+  df_error_wide = rbind(df_error_wide, df_)
+}
+
+
+df_error_wide[,'train_error'] = as.numeric(df_error_wide[,'train_error'])
+df_error_wide[,'test_error'] = as.numeric(df_error_wide[,'test_error'])
+
+df_test_error = df_error_wide[,c('test_error', 'mode')]
+df_train_error = df_error_wide[,c('train_error', 'mode')]
+
+df_test_error[, 'error_type'] = 'test_error'
+df_train_error[, 'error_type'] = 'train_error'
+
+colnames(df_test_error)[1] = 'error'
+colnames(df_train_error)[1] = 'error'
+
+df_error = rbind(df_train_error, df_test_error)
+
+ggplot(df_error) + geom_boxplot(mapping = aes(y = error, x=mode, color=error_type))
+
+```
+
+# KNN's K choices
+``` {r}
+# mean
+mean(list_k_chosen)
+# sd
+sd(list_k_chosen)
+```
+
+
