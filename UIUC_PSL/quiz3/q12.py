@@ -5,7 +5,7 @@ from sklearn import linear_model
 import pandas as pd
 import statsmodels.formula.api as smf
 
-df = pd.read_csv('~/Dropbox/Library/UIUC_PSL/quiz3/prostate.csv')
+df = pd.read_csv('/UIUC_PSL/quiz3/prostate.csv')
 Y = 'lpsa'
 
 list_x = 'lcavol + lweight + age + lbph + svi + lcp + gleason + pgg45'.split('+')
