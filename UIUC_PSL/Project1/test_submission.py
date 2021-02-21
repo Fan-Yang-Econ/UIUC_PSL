@@ -1,6 +1,6 @@
 import os
 from pprint import pprint
-
+from datetime import datetime
 import pandas as pd
 
 from UIUC_PSL.Project1.mymain import transform_category_vars, Y, LassoModel, BoostingTreeMode, error_evaluation
@@ -10,26 +10,16 @@ pd.set_option('display.width', 1000)
 pd.set_option('display.max_colwidth', 40)
 
 
-FOLDER = '/Users/yafa/Dropbox/Library/UIUC_PSL/UIUC_PSL/Project1/'
-df_ames = pd.read_csv(os.path.join(FOLDER, 'Ames_data.csv'))
-df_ames_numeric = transform_category_vars(df_ames)
-
-df_ames_numeric['PID'] = df_ames['PID']
-df_ames_numeric[Y] = df_ames[Y]
-list_x = [i for i in df_ames_numeric.columns if i not in ['PID', Y]]
-
-with open(os.path.join(FOLDER, 'project1_testIDs.dat')) as f:
-    str_testID = f.readlines()
 
 
-def prepare_data(df_ames, TEST_ID, FOLDER, write_to_csv=True, str_testID=str_testID):
+def prepare_data(df_ames, TEST_ID, FOLDER, str_testID, write_to_csv=True):
     # prepare data
     
     df_test_id = pd.DataFrame([i.strip().split() for i in str_testID])
     df_test_id[TEST_ID] = df_test_id[TEST_ID].apply(lambda x: int(x))
     
-    df_test_full = df_ames[df_ames_numeric['PID'].index.isin(df_test_id[TEST_ID])]
-    df_train_full = df_ames[~df_ames_numeric['PID'].index.isin(df_test_id[TEST_ID])]
+    df_test_full = df_ames[df_ames['PID'].index.isin(df_test_id[TEST_ID])]
+    df_train_full = df_ames[~df_ames['PID'].index.isin(df_test_id[TEST_ID])]
 
     df_train_full = df_train_full.reset_index()
     df_test_full = df_test_full.reset_index()
@@ -43,11 +33,24 @@ def prepare_data(df_ames, TEST_ID, FOLDER, write_to_csv=True, str_testID=str_tes
 
 
 
+start_time = datetime.now()
+
+FOLDER = '/Users/yafa/Dropbox/Library/UIUC_PSL/UIUC_PSL/Project1/'
+df_ames = pd.read_csv(os.path.join(FOLDER, 'Ames_data.csv'))
+df_ames_numeric = transform_category_vars(df_ames)
+
+df_ames_numeric['PID'] = df_ames['PID']
+df_ames_numeric[Y] = df_ames[Y]
+list_x = [i for i in df_ames_numeric.columns if i not in ['PID', Y]]
+
+with open(os.path.join(FOLDER, 'project1_testIDs.dat')) as f:
+    str_testID = f.readlines()
+
 list_result = []
 
 for TEST_ID in range(0, 10):
     # TEST_ID = 6
-    DICT_DATA = prepare_data(df_ames, TEST_ID, FOLDER, write_to_csv=False)
+    DICT_DATA = prepare_data(df_ames_numeric, TEST_ID, FOLDER, write_to_csv=False, str_testID=str_testID)
     df_train = DICT_DATA['df_train']
     df_test = DICT_DATA['df_test']
     
@@ -83,3 +86,16 @@ for TEST_ID in range(0, 10):
     #   'train_error': 0.03624405277329622}]
 
 pprint(list_result)
+
+df_errors = pd.DataFrame(list_result)
+
+for model in ['BoostingTreeMode', 'LassoModel']:
+    print(model)
+    print(df_errors[df_errors['model_name'] == model]['testing_error'].apply(lambda x: int(x*1000)/1000).tolist())
+    print(df_errors[df_errors['model_name'] == model]['testing_error'].mean())
+
+df_errors[df_errors['model_name'] == 'LassoModel']['testing_error'].mean()
+df_errors[df_errors['model_name'] == 'BoostingTreeMode']['testing_error'].mean()
+
+end_time = datetime.now()
+print(start_time, '---', end_time)

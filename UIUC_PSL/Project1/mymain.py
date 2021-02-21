@@ -164,7 +164,11 @@ class BoostingTreeMode(LassoModel):
         num_round = self.tuning_parameters.get('num_round', 5)
         
         self.model = xgb.train(param, dtrain, num_round)
-    
+
+    def print_tree(self, tree_id):
+        df_tree = self.model.trees_to_dataframe()
+        return df_tree[df_tree['Tree'] == tree_id]
+
     def predict(self, new_data):
         ypred = self.model.predict(xgb.DMatrix(new_data))
         ypred = (pd.Series(ypred) + self.logged_y_training.mean()).apply(
@@ -262,13 +266,13 @@ if __name__ == '__main__':
     
         def plot_bst_tree(bst):
             fig = matplotlib.pyplot.gcf()
-            xgb.plot_importance(bst)
-            xgb.plot_tree(bst, num_trees=4)
+            # xgb.plot_importance(bst)
+            xgb.plot_tree(bst, num_trees=1)
             fig.set_size_inches(100, 50)
             plt.figure(figsize=[100., 50.]).show()
-            plt.savefig('/tmp/tree2.png')
+            plt.savefig('/Users/yafa/Downloads/tree2.png')
     
-    
+     
         dict_lasso_result = cv(
             list_tuning_parameters=[{'alpha': 0.1}, {'alpha': 0.5}, {'alpha': 0.01}], model_class=LassoModel,
             df_train=df_train_numeric,
