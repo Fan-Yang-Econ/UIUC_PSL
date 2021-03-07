@@ -1,6 +1,10 @@
+"""
+Run 10 times of the model, on 10 different training/test data pairs
+"""
 import os
 from pprint import pprint
 from datetime import datetime
+
 import pandas as pd
 
 from UIUC_PSL.Project1.mymain import transform_category_vars, Y, LassoModel, BoostingTreeMode, error_evaluation
@@ -8,8 +12,6 @@ from UIUC_PSL.Project1.mymain import transform_category_vars, Y, LassoModel, Boo
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 1000)
 pd.set_option('display.max_colwidth', 40)
-
-
 
 
 def prepare_data(df_ames, TEST_ID, FOLDER, str_testID, write_to_csv=True):
@@ -20,7 +22,7 @@ def prepare_data(df_ames, TEST_ID, FOLDER, str_testID, write_to_csv=True):
     
     df_test_full = df_ames[df_ames['PID'].index.isin(df_test_id[TEST_ID])]
     df_train_full = df_ames[~df_ames['PID'].index.isin(df_test_id[TEST_ID])]
-
+    
     df_train_full = df_train_full.reset_index()
     df_test_full = df_test_full.reset_index()
     
@@ -30,7 +32,6 @@ def prepare_data(df_ames, TEST_ID, FOLDER, str_testID, write_to_csv=True):
         df_test_full[[i for i in df_test_full.columns if i == 'Sale_Price']].to_csv(os.path.join(FOLDER, "test_y.csv"), index=False)
     
     return {'df_test': df_test_full, 'df_train': df_train_full}
-
 
 
 start_time = datetime.now()
@@ -56,16 +57,16 @@ for TEST_ID in range(0, 10):
     
     df_train_numeric = transform_category_vars(df=df_train)
     df_test_numeric = transform_category_vars(df=df_test)
-
+    
     common_vars = set(df_test_numeric.columns).intersection(set(df_train_numeric.columns))
-
+    
     df_train_numeric = df_train_numeric[common_vars]
     df_test_numeric = df_test_numeric[common_vars]
-
+    
     for model_cls in [LassoModel, BoostingTreeMode]:
         model_obj = model_cls(df_train=df_train_numeric, y_series=df_train[Y])
         model_obj.train()
-
+        
         # self=model_obj
         
         list_result.append({
@@ -74,7 +75,7 @@ for TEST_ID in range(0, 10):
             'train_error': error_evaluation(model_obj.predict(new_data=df_train_numeric), df_train[Y]),
             'model_name': model_cls.__name__
         })
-        
+    
     # pprint(list_result)
     # [{'model_name': 'LassoModel',
     #   'test_id': 6,
@@ -91,7 +92,7 @@ df_errors = pd.DataFrame(list_result)
 
 for model in ['BoostingTreeMode', 'LassoModel']:
     print(model)
-    print(df_errors[df_errors['model_name'] == model]['testing_error'].apply(lambda x: int(x*1000)/1000).tolist())
+    print(df_errors[df_errors['model_name'] == model]['testing_error'].apply(lambda x: int(x * 1000) / 1000).tolist())
     print(df_errors[df_errors['model_name'] == model]['testing_error'].mean())
 
 df_errors[df_errors['model_name'] == 'LassoModel']['testing_error'].mean()
