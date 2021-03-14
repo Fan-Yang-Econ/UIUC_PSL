@@ -12,9 +12,10 @@ import pandas as pd
 from sklearn import linear_model
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import StandardScaler
-import xgboost as xgb
+# import xgboost as xgb
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
 
 Y = 'Sale_Price'
 
@@ -34,17 +35,34 @@ def set_logging(level=10,
 def _get_one_hot_encoder_df(_col_name, df_train):
     """
     hot code for one single category vars
-    
+
     :param _col_name:
     :param df_train:
     :return:
     """
-    enc = OneHotEncoder(handle_unknown='error')
+
+    enc = OneHotEncoder(handle_unknown='ignore')
     _cate_matrix = [i[[_col_name]] for row_i, i in df_train.iterrows()]
     enc.fit(_cate_matrix)
     df_hot_code = pd.DataFrame(enc.transform(_cate_matrix).toarray())
     df_hot_code.columns = [_col_name + '__' + str(i) for i in df_hot_code.columns]
-    
+
+    return {'data_frame': df_hot_code, "encode": enc}
+
+
+def _get_one_hot_encoder_df_test(_col_name, df_test, dict_one_hot_encoder):
+    """
+    hot code for one single category vars
+
+    :param _col_name:
+    :param df_train:
+    :return:
+    """
+    enc = dict_one_hot_encoder[_col_name]
+    _cate_matrix = [i[[_col_name]] for row_i, i in df_test.iterrows()]
+    df_hot_code = pd.DataFrame(enc.transform(_cate_matrix).toarray())
+    df_hot_code.columns = [_col_name + '__' + str(i) for i in df_hot_code.columns]
+
     return df_hot_code
 
 
@@ -54,39 +72,76 @@ def transform_category_vars(df, Y=Y):
     :param df:
     :return:
     """
-    
+
     LIST_X = [i for i in df.columns if i not in [Y, 'PID']]
     LIST_CATEGORY_X = []
     LIST_NUMERIC_C = []
-    
+
     for x in LIST_X:
-        try:
-            df[x].astype(int)
+        if  df[x].dtypes != 'object':
+
             LIST_NUMERIC_C.append(x)
-        except ValueError:
+        else:
             LIST_CATEGORY_X.append(x)
             # len(LIST_CATEGORY_X)
             # len(LIST_NUMERIC_C)
-            
+
     dict_one_hot_encoder_df = {}
+    dict_one_hot_encoder = {}
     for _col_name in LIST_CATEGORY_X:
-        dict_one_hot_encoder_df[_col_name] = _get_one_hot_encoder_df(_col_name, df)
-    
+        # print(_col_name)
+        encode_result = _get_one_hot_encoder_df(_col_name, df)
+        dict_one_hot_encoder_df[_col_name] = encode_result["data_frame"]
+        dict_one_hot_encoder[_col_name] = encode_result["encode"]
+
     df_numeric = deepcopy(df[LIST_X])
     for _col_name in LIST_CATEGORY_X:
         del df_numeric[_col_name]
         for new_col in dict_one_hot_encoder_df[_col_name]:
             df_numeric[new_col] = dict_one_hot_encoder_df[_col_name][new_col]
-    
-    return df_numeric
 
+    return (df_numeric, dict_one_hot_encoder)
+
+
+def transform_category_vars_test(df_test,  dict_one_hot_encoder, Y=Y):
+    """
+    hot code for all category vars
+    :param df:
+    :return:
+    """
+
+    LIST_X = [i for i in df_test.columns if i not in [Y, 'PID']]
+    LIST_CATEGORY_X = []
+    LIST_NUMERIC_C = []
+
+    for x in LIST_X:
+        if  df_test[x].dtypes != 'object':
+
+            LIST_NUMERIC_C.append(x)
+        else:
+            LIST_CATEGORY_X.append(x)
+            # len(LIST_CATEGORY_X)
+            # len(LIST_NUMERIC_C)
+
+    dict_one_hot_encoder_df = {}
+    # dict_one_hot_encoder = {}
+    for _col_name in LIST_CATEGORY_X:
+        dict_one_hot_encoder_df[_col_name] = _get_one_hot_encoder_df_test(_col_name, df_test, dict_one_hot_encoder)
+
+    df_numeric = deepcopy(df_test[LIST_X])
+    for _col_name in LIST_CATEGORY_X:
+        del df_numeric[_col_name]
+        for new_col in dict_one_hot_encoder_df[_col_name]:
+            df_numeric[new_col] = dict_one_hot_encoder_df[_col_name][new_col]
+
+    return df_numeric
 
 def standardize_df(df_train_numeric):
     scaler = StandardScaler()
     scaler.fit(df_train_numeric)
     df_train_numeric_stand = pd.DataFrame(scaler.transform(df_train_numeric))
     df_train_numeric_stand.columns = df_train_numeric.columns
-    
+
     return df_train_numeric_stand
 
 
@@ -110,9 +165,10 @@ class LassoModel:
     DEFAULT_ALPHA = 0.1
     Y_COL_NAME = Y
     
-    def __init__(self, df_train, y_series, tuning_parameters=None):
+    def __init__(self, df_train, y_series, df_test, tuning_parameters=None):
         self.df_train = df_train
         self.y_series = y_series
+        self.df_test = df_test
         
         if tuning_parameters is None:
             self.tuning_parameters = {}
@@ -120,25 +176,30 @@ class LassoModel:
             self.tuning_parameters = tuning_parameters
     
     def train(self):
-        df_train_numeric_stand = standardize_df(self.df_train)
+        # df_train_numeric_stand = standardize_df(self.df_train)
+
         
         model = linear_model.Lasso(
             alpha=self.tuning_parameters.get('alpha', self.DEFAULT_ALPHA),
-            fit_intercept=False,
-            normalize=False)
+            # fit_intercept=False,
+            # normalize=False
+            fit_intercept=True,
+            normalize=True
+        )
         
-        df_train_matrix = [i.tolist() for row_i, i in df_train_numeric_stand.iterrows()]
+        df_train_matrix = [i.tolist() for row_i, i in df_train.iterrows()]
         
         self.logged_y_training = log_y(self.y_series)
-        model.fit(df_train_matrix, (self.logged_y_training - self.logged_y_training.mean()).tolist())
+        # model.fit(df_train_matrix, (self.logged_y_training - self.logged_y_training.mean()).tolist())
+        model.fit(df_train_matrix, self.logged_y_training)
         self.model = model
         
         return model
     
     def predict(self, new_data, Y_COL_NAME=Y):
-        df_new_data_numeric = standardize_df(new_data)
-        predictions = self.model.predict(df_new_data_numeric)
-        predictions = pd.Series(predictions + self.logged_y_training.mean()).apply(
+        # df_new_data_numeric = standardize_df(new_data)
+        predictions = self.model.predict(new_data)
+        predictions = pd.Series(predictions).apply(
             lambda logged_y: math.exp(logged_y) if logged_y > 0 else min(df_train[self.Y_COL_NAME]))
         
         return predictions
@@ -192,8 +253,9 @@ if __name__ == '__main__':
     parser.add_argument('--stage',
                         help='Whether it is used for `tuning` or `submission`',
                         default='submission')
-    
+    #
     # FOLDER = '/Users/yafa/Dropbox/Library/UIUC_PSL/UIUC_PSL/Project1/'
+    # FOLDER = '/Users/fanyang/Dropbox/uiuc/cs598/UIUC_SPL/UIUC_PSL/Project1/'
     # parsed_args = parser.parse_args(['--folder', '/Users/yafa/Dropbox/Library/UIUC_PSL/UIUC_PSL/Project1/', '--stage', 'tuning'])
     
     parsed_args = parser.parse_args()
@@ -208,20 +270,22 @@ if __name__ == '__main__':
     ###########################################
     # Step 1: Preprocess training data
     #         and fit two models
-    
+    # '/Users/fanyang/Dropbox/uiuc/cs598/UIUC_SPL/Project1/train.csv'
+    # '/Users/fanyang/Dropbox/uiuc/cs598/UIUC_SPL/UIUC_PSL/Project1/train.csv'
+
     df_train = pd.read_csv(os.path.join(FOLDER, "train.csv"))
     df_train = df_train.reindex()
     
     df_test = pd.read_csv(os.path.join(FOLDER, "test.csv"))
     df_test = df_test.reindex()
     
-    df_train_numeric = transform_category_vars(df=df_train)
-    df_test_numeric = transform_category_vars(df=df_test)
+    df_train_numeric, dict_one_hot_encoder = transform_category_vars(df=df_train)
+    df_test_numeric = transform_category_vars_test(df_test, dict_one_hot_encoder)
 
-    common_vars = set(df_test_numeric.columns).intersection(set(df_train_numeric.columns))
-    
-    df_train_numeric = df_train_numeric[common_vars]
-    df_test_numeric = df_test_numeric[common_vars]
+    # common_vars = set(df_test_numeric.columns).intersection(set(df_train_numeric.columns))
+    #
+    # df_train_numeric = df_train_numeric[common_vars]
+    # df_test_numeric = df_test_numeric[common_vars]
 
     df_test_y = pd.read_csv(os.path.join(FOLDER, "test_y.csv"))
     df_test_y = df_test_y.reindex()
