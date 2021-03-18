@@ -9,13 +9,15 @@ import pandas as pd
 from sklearn import linear_model
 from sklearn.preprocessing import OneHotEncoder
 # from sklearn.preprocessing import StandardScaler
+from xgboost import XGBClassifier
 import xgboost as xgb
 # import matplotlib
 # import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import KFold
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 from sklearn.model_selection import cross_val_score
+from sklearn.metrics import mean_squared_error
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -227,10 +229,6 @@ def new_feature(df):
         lambda x: 1 if (x['grp_neighbor_1'] == 0) and (x['grp_neighbor_2'] == 0) and (x['grp_neighbor_3'] == 0) else 0,
         axis=1)
 
-
-# clean_data(df_test, var_outlier, training=False)
-
-
 # remove some categorical data
 remove_var = ['Street', 'Utilities', 'Condition_2', 'Roof_Matl', 'Heating',
               'Pool_QC', 'Misc_Feature', 'Low_Qual_Fin_SF', 'Pool_Area', 'Longitude','Latitude',
@@ -244,7 +242,7 @@ remove_var = ['Street', 'Utilities', 'Condition_2', 'Roof_Matl', 'Heating',
               ]
 
 select_var = [i for i in df_train.columns if i not in remove_var]
-clean_data(df_train,var_outlier,training=True)
+# clean_data(df_train,var_outlier,training=True)
 new_feature(df_train)
 new_feature(df_test)
 
@@ -270,7 +268,39 @@ after_vars = df_train_numeric.columns
 #
 # final_candidate = [col for col in df_train_numeric.columns if col not in sparse_var_list]
 
-final_candidate = after_vars
+corr_rmv_list = [
+'Bldg_Type__0',
+ 'Bldg_Type__4',
+ 'BsmtFin_SF_1',
+ 'BsmtFin_Type_1__4',
+ 'BsmtFin_Type_2__4',
+ 'Bsmt_Cond__3',
+ 'Bsmt_Qual__3',
+ 'Exterior_1st__0',
+ 'Exterior_1st__11',
+ 'Exterior_1st__4',
+ 'Exterior_1st__5',
+ 'Exterior_1st__6',
+ 'Exterior_2nd__13',
+ 'Exterior_2nd__2',
+ # 'First_Flr_SF',
+ 'Garage_Area',
+ 'Garage_Cond__3',
+ 'Garage_Qual__3',
+ 'Garage_Type__6',
+ 'House_Style__1',
+ 'House_Style__4',
+ 'House_Style__5',
+ 'MS_SubClass__6',
+ 'MS_Zoning__2',
+ 'Sale_Condition__5',
+ # 'TotRms_AbvGrd'
+ ]
+
+final_candidate = [col for col in df_train_numeric.columns if col not in corr_rmv_list]
+
+# final_candidate = after_vars
+
 X = df_train_numeric[final_candidate]
 y = logged_y_training
 
@@ -324,23 +354,142 @@ predicted_y = predict(RidgeModel, new_data=df_test_numeric[lasso_var])
 print(error_evaluation(predicted_y, true_y=df_test_y[Y]))
 
 
+# random forest
+X = df_train_numeric
+RF = RandomForestRegressor(n_jobs = -1)
+tuned_parameters = {
+        'max_depth': [6, 7, 8, 9, 10],
+        'max_samples' : [0.3, 0.5, 0.8],
+        'n_estimators': [400, 600, 800],
+        'min_samples_split': [0.001, 0.002, 0.005]
+        # 'min_samples_leaf': [0.01, 0.02, 0.05]
+        }
+n_folds = 3
+clf = RandomizedSearchCV(RF,
+                         tuned_parameters,
+                         cv=n_folds,
+                         n_iter=30,
+                         refit=False, scoring='neg_mean_squared_error')
+clf.fit(X, y)
+# print(clf.cv_results_['mean_test_score'])
+# print(clf.cv_results_['params'])
+df_cv = pd.DataFrame(clf.cv_results_['params'])
+df_cv['mse'] = clf.cv_results_['mean_test_score']
+# df_cv.to_csv('rm_tuning3.csv')
+best_params = clf.best_params_
+# {'n_estimators': 1000, 'min_samples_split': 0.002, 'max_samples': 0.8, 'max_depth': 10}
+
+RFmodel = RandomForestRegressor(n_jobs = -1,
+                                n_estimators= best_params['n_estimators'],
+                                max_samples = best_params['max_samples'],
+                                max_depth = best_params['max_depth'],
+                                min_samples_split = best_params['min_samples_split']
+                                # min_samples_leaf = best_params['min_samples_leaf']
+                                )
+RFmodel.fit(X, y)
+
+predicted_y = predict(RFmodel, new_data=X)
+print(error_evaluation(predicted_y, true_y=df_train[Y]))
+predicted_y = predict(RFmodel, new_data=df_test_numeric)
+print(error_evaluation(predicted_y, true_y=df_test_y[Y]))
+
+
 
 #
-#
-# RFmodel = RandomForestRegressor(max_depth = 10, n_estimators = 200)
-# RFmodel.fit(df_train_numeric, logged_y_training)
-#
-# predicted_y = predict(RFmodel, new_data=df_train_numeric)
-# print(error_evaluation(predicted_y, true_y=df_train[Y]))
-# predicted_y = predict(RFmodel, new_data=df_test_numeric)
-# print(error_evaluation(predicted_y, true_y=df_test_y[Y]))
-#
-# #
-# importance = RFmodel.feature_importances_
-# # summarize feature importance
-#
-# feature_importances = pd.DataFrame(RFmodel.feature_importances_,
-#                                    index = df_train_numeric.columns,
-#                                    columns=['importance']).sort_values('importance', ascending=False)
-#
-# feature_importances.head(50)
+importance = RFmodel.feature_importances_
+# summarize feature importance
+
+df_feature = pd.DataFrame(RFmodel.feature_importances_,index = X.columns,columns=['importance'])\
+    .sort_values('importance', ascending=False)
+
+RF_var = df_feature[df_feature['importance']>0].index.tolist()
+print(len(RF_var))
+
+
+# XGboost
+import timeit
+start = timeit.default_timer()
+#Your statements here
+xgb = XGBClassifier(
+                    learning_rate=0.1,
+                    max_depth=3,
+                    n_estimators=500,
+                    objective='reg:squarederror',
+                    # tree_method = 'hist',
+                    # gamma=0.1,
+                    subsample=0.5,
+                    colsample_bytree=0.8
+                    # use_label_encoder = False
+                    )
+xgb.fit(X, y)
+stop = timeit.default_timer()
+print('Time: ', stop - start)
+predicted_y = predict(xgb, new_data=X)
+print(error_evaluation(predicted_y, true_y=df_train[Y]))
+predicted_y = predict(xgb, new_data=df_test_numeric)
+print(error_evaluation(predicted_y, true_y=df_test_y[Y]))
+
+
+xgb = XGBClassifier(objective='reg:squarederror',
+                    tree_method = 'hist',
+                    learning_rate = 0.1,
+                    subsample = 0.8,
+                    colsample_bytree = 0.8
+                    )
+params = {
+# 'learning_rate' :[0.3, 0.1, 0.05, 0.03],
+#         'gamma': [0, 0.1, 0.5, 1, 1.5],
+#         'subsample': [0.6, 0.8, 1.0],
+#         'colsample_bytree': [0.6, 0.8, 1.0],
+        'max_depth': [4, 5, 6],
+        'n_estimators': [150, 200, 250, 300]
+        }
+n_folds = 5
+
+random_search = RandomizedSearchCV(xgb,
+                                   param_distributions=params,
+                                   cv = n_folds,
+                                   scoring='neg_mean_squared_error',
+                                   n_jobs=-1,
+                                   random_state=1001)
+
+random_search.fit(X[RF_var], y)
+# clf.cv_results_['mean_test_score']
+# best_alpha_ridge = clf.best_params_['alpha']
+# print(best_alpha_ridge)
+
+
+
+start = timeit.default_timer()
+# lasso variable
+xgb = XGBClassifier(objective='reg:squarederror',
+                    # tree_method = 'hist',
+                    learning_rate = 0.1,
+                    subsample = 0.8,
+                    colsample_bytree = 0.5,
+                    n_estimators = 50,
+                    max_depth = 6
+)
+xgb.fit(X[lasso_var], y)
+predicted_y = predict(xgb, new_data=X[lasso_var])
+print(error_evaluation(predicted_y, true_y=df_train[Y]))
+predicted_y = predict(xgb, new_data=df_test_numeric[lasso_var])
+print(error_evaluation(predicted_y, true_y=df_test_y[Y]))
+
+stop = timeit.default_timer()
+print('Time: ', stop - start)
+
+# random forest variable
+xgb = XGBClassifier(objective='reg:squarederror',
+                    tree_method = 'hist',
+                    learning_rate = 0.03,
+                    subsample = 0.8,
+                    colsample_bytree = 0.8,
+                    n_estimators = 250,
+                    max_depth = 4
+)
+xgb.fit(X[RF_var], y)
+predicted_y = predict(xgb, new_data=X[RF_var])
+print(error_evaluation(predicted_y, true_y=df_train[Y]))
+predicted_y = predict(xgb, new_data=df_test_numeric[RF_var])
+print(error_evaluation(predicted_y, true_y=df_test_y[Y]))
