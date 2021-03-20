@@ -16,9 +16,11 @@ from sklearn.preprocessing import StandardScaler
 # import xgboost as xgb
 import matplotlib
 import matplotlib.pyplot as plt
-import xgboost as xgb
+import xgboost as xgb_model
+from sklearn.model_selection import GridSearchCV
 
 Y = 'Sale_Price'
+BEST_ALPHA_RIDGE = 0.449398459072167
 
 
 def set_logging(level=10,
@@ -130,11 +132,10 @@ def error_evaluation(predicted_y, true_y):
 
 
 def clean_data(df, is_training_data=False):
-    
     if is_training_data:
         # for outliers, replace extreme values
         # used boxplot
-    
+        
         VAR_OUTLIERS = ['Lot_Area',
                         'Mas_Vnr_Area',
                         'BsmtFin_SF_2',
@@ -198,10 +199,34 @@ def clean_data(df, is_training_data=False):
                   Y,
                   'PID',
                   'Garage_Yr_Blt'
-                  ]
+                  ] + [
+                     'Bldg_Type__0',
+                     'Bldg_Type__4',
+                     'BsmtFin_SF_1',
+                     'BsmtFin_Type_1__4',
+                     'BsmtFin_Type_2__4',
+                     'Bsmt_Cond__3',
+                     'Bsmt_Qual__3',
+                     'Exterior_1st__0',
+                     'Exterior_1st__11',
+                     'Exterior_1st__4',
+                     'Exterior_1st__5',
+                     'Exterior_1st__6',
+                     'Exterior_2nd__13',
+                     'Exterior_2nd__2',
+                     'Garage_Area',
+                     'Garage_Cond__3',
+                     'Garage_Qual__3',
+                     'Garage_Type__6',
+                     'House_Style__1',
+                     'House_Style__4',
+                     'House_Style__5',
+                     'MS_SubClass__6',
+                     'MS_Zoning__2',
+                     'Sale_Condition__5',
+                 ]
     
     return df[[i for i in df.columns if i not in remove_var]]
-
 
 
 class LassoModel:
@@ -209,17 +234,17 @@ class LassoModel:
     Y_COL_NAME = Y
     MAX_ITER = 10000
     
-    def __init__(self, df_train, y_series, df_test, tuning_parameters=None):
+    def __init__(self, df_train, y_series, tuning_parameters=None):
         self.df_train = df_train
         self.y_series = y_series
-        self.df_test = df_test
         
         if tuning_parameters is None:
             self.tuning_parameters = {}
         else:
             self.tuning_parameters = tuning_parameters
     
-    def train(self):
+    def train(self, tune_ridge=False):
+        
         model = linear_model.Lasso(
             alpha=self.tuning_parameters.get('alpha', self.DEFAULT_ALPHA),
             # fit_intercept=False,
@@ -239,15 +264,44 @@ class LassoModel:
         {error_evaluation(pd.Series(model.predict(feature_matrix)).apply(
             lambda logged_y: math.exp(logged_y) if logged_y > 0 else min(self.y_series)), self.y_series)}""")
         
-        self.model = model
+        df_model_coef = pd.DataFrame(model.coef_, index=self.df_train.columns, columns=['coef']). \
+            sort_values('coef', ascending=False)
         
-        return model
+        # ridge
+        self.lasso_var = df_model_coef[abs(df_model_coef['coef']) > 0].index.tolist()
+        
+        if tune_ridge:
+            ridge = linear_model.Ridge(fit_intercept=True,
+                                       normalize=True,
+                                       random_state=0,
+                                       max_iter=10000)
+            
+            alphas = np.logspace(-5, 0.2, 20)
+            
+            tuned_parameters = [{'alpha': alphas}]
+            n_folds = 5
+            clf = GridSearchCV(ridge, tuned_parameters, cv=n_folds, refit=False, scoring='neg_mean_squared_error')
+            
+            clf.fit(self.df_train[self.lasso_var], y=self.logged_y_training)
+            # clf.cv_results_['mean_test_score']
+            best_alpha_ridge = clf.best_params_['alpha']
+        else:
+            best_alpha_ridge = BEST_ALPHA_RIDGE
+        
+        ridge_model = linear_model.Ridge(fit_intercept=True,
+                                         normalize=True,
+                                         alpha=best_alpha_ridge,
+                                         max_iter=100000)
+        ridge_model.fit(self.df_train[self.lasso_var], y=self.logged_y_training)
+        self.model = ridge_model
+        
+        return ridge_model
     
     def predict(self, new_data, Y_COL_NAME=Y):
         # dict_stand = standardize_df(new_data, scaler=self.scaler_from_training)
         # df_test_stand = dict_stand['df_train_numeric_stand']
         
-        predictions = self.model.predict([i.tolist() for row_i, i in new_data.iterrows()])
+        predictions = self.model.predict([i.tolist() for row_i, i in new_data[self.lasso_var].iterrows()])
         predictions = pd.Series(predictions).apply(
             lambda logged_y: math.exp(logged_y) if logged_y > 0 else min(self.y_series))
         
@@ -256,32 +310,37 @@ class LassoModel:
 
 class BoostingTreeMode(LassoModel):
     # https://xgboost.readthedocs.io/en/latest/parameter.html
-    MAX_DEPTH = 3
+    MAX_DEPTH = 4
     
     # Step size shrinkage used in update to prevents overfitting. After each boosting step,
     # we can directly get the weights of new features, and eta shrinks the feature weights to make the boosting process more conservative.
-    ETA = 0.3
+    ETA = 0.01
     
-    NUM_ROUND = 30
+    NUM_ROUND = 1000
     
     def train(self):
         self.logged_y_training = log_y(self.y_series)
+        num_round = self.tuning_parameters.get('NUM_ROUND', self.NUM_ROUND)
         
-        dtrain = xgb.DMatrix(self.df_train, label=self.logged_y_training - self.logged_y_training.mean())
+        # self.MAX_DEPTH = 4; num_round = 1000
+        
+        dtrain = xgb_model.DMatrix(self.df_train, label=self.logged_y_training)
         param = {'max_depth': self.tuning_parameters.get('max_depth', self.MAX_DEPTH),
                  'eta': self.tuning_parameters.get('eta', self.ETA),
                  'objective': 'reg:squarederror'}
-        num_round = self.tuning_parameters.get('num_round', 5)
         
-        self.model = xgb.train(param, dtrain, num_round)
+        self.model = xgb_model.train(param, dtrain, num_round)
+        
+        predicted_y = self.predict(new_data=self.df_train)
+        logging.info(f'Training error: {error_evaluation(predicted_y, true_y=self.y_series)}')
     
     def print_tree(self, tree_id):
         df_tree = self.model.trees_to_dataframe()
         return df_tree[df_tree['Tree'] == tree_id]
     
     def predict(self, new_data):
-        ypred = self.model.predict(xgb.DMatrix(new_data))
-        ypred = (pd.Series(ypred) + self.logged_y_training.mean()).apply(
+        ypred = self.model.predict(xgb_model.DMatrix(new_data))
+        ypred = (pd.Series(ypred)).apply(
             lambda logged_y: math.exp(logged_y) if logged_y > 0 else min(df_train[self.Y_COL_NAME]))
         
         return ypred
@@ -292,7 +351,7 @@ def impute_missing_data(df):
     for col_i in df:
         if df[col_i].isna().sum() > 0:
             df.loc[df[col_i].isna(), col_i] = df[col_i].mean()
-
+    
     return df
 
 
@@ -326,7 +385,6 @@ if __name__ == '__main__':
     
     print(parsed_args)
     
-    
     ###########################################
     # Step 1: Preprocess training data
     #         and fit two models
@@ -341,13 +399,13 @@ if __name__ == '__main__':
     df_test = df_test.reindex()
     
     pid_series_test = df_test['PID']
-
+    
     df_train = clean_data(df_train, is_training_data=True)
     df_test = clean_data(df_test, is_training_data=False)
     
     df_train_numeric, dict_one_hot_encoder = transform_category_vars(df=df_train, dict_one_hot_encoder=None)
     df_test_numeric, dict_one_hot_encoder = transform_category_vars(df=df_test, dict_one_hot_encoder=dict_one_hot_encoder)
-
+    
     df_train_numeric = impute_missing_data(df_train_numeric)
     df_test_numeric = impute_missing_data(df_test_numeric)
     
@@ -362,14 +420,15 @@ if __name__ == '__main__':
     if TUNING_OR_SUBMISSION == 'submission':
         
         for file_name, model_cls in [('mysubmission1.txt', LassoModel), ('mysubmission2.txt', BoostingTreeMode)]:
+            # model_cls = LassoModel
             # model_cls = BoostingTreeMode
-            model_obj = model_cls(df_train=df_train_numeric, df_test=df_test_numeric, y_series=y_series_train)
+            model_obj = model_cls(df_train=df_train_numeric, y_series=y_series_train)
             model_obj.train()
             predicted_y = model_obj.predict(new_data=df_test_numeric)
             # self=model_obj
             print(error_evaluation(predicted_y, true_y=df_test_y[Y]))
             
-            pd.DataFrame({'PID':pid_series_test,
+            pd.DataFrame({'PID': pid_series_test,
                           'Sale_Price': predicted_y}).to_csv(os.path.join(FOLDER, file_name), index=False)
     
     elif TUNING_OR_SUBMISSION == 'tuning':
@@ -411,7 +470,7 @@ if __name__ == '__main__':
         
         
         dict_lasso_result = cv(
-            list_tuning_parameters=[{'alpha': 0.1}, {'alpha': 0.5}, {'alpha': 0.01}], model_class=LassoModel,
+            list_tuning_parameters=[{'alpha': 0.01}, {'alpha': 0.01}, {'alpha': 0.0001}], model_class=LassoModel,
             df_train=df_train_numeric,
             df_test=df_test_numeric,
             y_series_train=df_train[Y],
@@ -432,3 +491,4 @@ if __name__ == '__main__':
         
         print(dict_lasso_result['best_model'])
         print(dict_boosting_tree_result['best_model'])
+        
