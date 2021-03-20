@@ -10,6 +10,7 @@ from sklearn import linear_model
 from sklearn.preprocessing import OneHotEncoder
 # from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
+from xgboost import XGBRegressor
 import xgboost as xgb
 # import matplotlib
 # import matplotlib.pyplot as plt
@@ -241,11 +242,11 @@ remove_var = ['Street', 'Utilities', 'Condition_2', 'Roof_Matl', 'Heating',
 
               ]
 
-select_var = [i for i in df_train.columns if i not in remove_var]
+
 # clean_data(df_train,var_outlier,training=True)
 new_feature(df_train)
 new_feature(df_test)
-
+select_var = [i for i in df_train.columns if i not in remove_var]
 df_train_numeric, dict_one_hot_encoder = transform_category_vars(df=df_train[select_var])
 df_test_numeric = transform_category_vars_test(df_test[select_var], dict_one_hot_encoder)
 # missing value
@@ -355,7 +356,7 @@ print(error_evaluation(predicted_y, true_y=df_test_y[Y]))
 
 
 # random forest
-X = df_train_numeric
+X = df_train_numeric[final_candidate]
 RF = RandomForestRegressor(n_jobs = -1)
 tuned_parameters = {
         'max_depth': [6, 7, 8, 9, 10],
@@ -364,7 +365,7 @@ tuned_parameters = {
         'min_samples_split': [0.001, 0.002, 0.005]
         # 'min_samples_leaf': [0.01, 0.02, 0.05]
         }
-n_folds = 3
+n_folds = 5
 clf = RandomizedSearchCV(RF,
                          tuned_parameters,
                          cv=n_folds,
@@ -377,7 +378,8 @@ df_cv = pd.DataFrame(clf.cv_results_['params'])
 df_cv['mse'] = clf.cv_results_['mean_test_score']
 # df_cv.to_csv('rm_tuning3.csv')
 best_params = clf.best_params_
-# {'n_estimators': 1000, 'min_samples_split': 0.002, 'max_samples': 0.8, 'max_depth': 10}
+# {'n_estimators': 800, 'min_samples_split': 0.001, 'max_samples': 0.5, 'max_depth': 10}
+
 
 RFmodel = RandomForestRegressor(n_jobs = -1,
                                 n_estimators= best_params['n_estimators'],
@@ -390,7 +392,7 @@ RFmodel.fit(X, y)
 
 predicted_y = predict(RFmodel, new_data=X)
 print(error_evaluation(predicted_y, true_y=df_train[Y]))
-predicted_y = predict(RFmodel, new_data=df_test_numeric)
+predicted_y = predict(RFmodel, new_data=df_test_numeric[final_candidate])
 print(error_evaluation(predicted_y, true_y=df_test_y[Y]))
 
 
@@ -407,89 +409,81 @@ print(len(RF_var))
 
 
 # XGboost
+# import timeit
+# start = timeit.default_timer()
+#Your statements here
+# xgb = XGBRegressor(
+#                     learning_rate=0.1,
+#                     max_depth=3,
+#                     n_estimators=500,
+#                     objective='reg:squarederror',
+#                     # tree_method = 'hist',
+#                     # gamma=0.1,
+#                     subsample=0.5,
+#                     colsample_bytree=0.8
+#                     # use_label_encoder = False
+#                     )
+# xgb.fit(X, y)
+# stop = timeit.default_timer()
+# print('Time: ', stop - start)
+# predicted_y = predict(xgb, new_data=X)
+# print(error_evaluation(predicted_y, true_y=df_train[Y]))
+# predicted_y = predict(xgb, new_data=df_test_numeric)
+# print(error_evaluation(predicted_y, true_y=df_test_y[Y]))
+
 import timeit
 start = timeit.default_timer()
-#Your statements here
-xgb = XGBClassifier(
-                    learning_rate=0.1,
-                    max_depth=3,
-                    n_estimators=500,
-                    objective='reg:squarederror',
-                    # tree_method = 'hist',
-                    # gamma=0.1,
-                    subsample=0.5,
-                    colsample_bytree=0.8
-                    # use_label_encoder = False
-                    )
-xgb.fit(X, y)
-stop = timeit.default_timer()
-print('Time: ', stop - start)
-predicted_y = predict(xgb, new_data=X)
-print(error_evaluation(predicted_y, true_y=df_train[Y]))
-predicted_y = predict(xgb, new_data=df_test_numeric)
-print(error_evaluation(predicted_y, true_y=df_test_y[Y]))
-
-
-xgb = XGBClassifier(objective='reg:squarederror',
-                    tree_method = 'hist',
-                    learning_rate = 0.1,
-                    subsample = 0.8,
-                    colsample_bytree = 0.8
+xgb = XGBRegressor(objective='reg:squarederror'
+                    # ,tree_method = 'hist',
+                    # learning_rate = 0.05,
+                    # subsample = 0.8,
+                    # colsample_bytree = 0.8
                     )
 params = {
-# 'learning_rate' :[0.3, 0.1, 0.05, 0.03],
-#         'gamma': [0, 0.1, 0.5, 1, 1.5],
-#         'subsample': [0.6, 0.8, 1.0],
-#         'colsample_bytree': [0.6, 0.8, 1.0],
+'learning_rate' :[0.1, 0.05, 0.03, 0.01],
+        'gamma': [0, 0.1, 0.5, 1, 1.5],
+        'subsample': [0.6, 0.8, 1.0],
+        'colsample_bytree': [0.6, 0.8, 1.0],
         'max_depth': [4, 5, 6],
-        'n_estimators': [150, 200, 250, 300]
+        'n_estimators': [150, 200, 250, 300, 500]
         }
 n_folds = 5
 
 random_search = RandomizedSearchCV(xgb,
                                    param_distributions=params,
+                                   n_iter=30,
                                    cv = n_folds,
                                    scoring='neg_mean_squared_error',
                                    n_jobs=-1,
                                    random_state=1001)
 
-random_search.fit(X[RF_var], y)
+random_search.fit(X, y)
+stop = timeit.default_timer()
+print('Time: ', stop - start)
 # clf.cv_results_['mean_test_score']
 # best_alpha_ridge = clf.best_params_['alpha']
 # print(best_alpha_ridge)
 
 
+best_params_xgb = random_search.best_params_
 
 start = timeit.default_timer()
 # lasso variable
-xgb = XGBClassifier(objective='reg:squarederror',
+xgb = XGBRegressor(objective='reg:squarederror',
                     # tree_method = 'hist',
-                    learning_rate = 0.1,
-                    subsample = 0.8,
-                    colsample_bytree = 0.5,
-                    n_estimators = 50,
-                    max_depth = 6
+                    learning_rate = best_params_xgb['learning_rate'],
+                    subsample = best_params_xgb['subsample'],
+                    colsample_bytree = best_params_xgb['colsample_bytree'],
+                    n_estimators = best_params_xgb['n_estimators'],
+                    max_depth = best_params_xgb['max_depth'],
+                    gamma= best_params_xgb['gamma']
 )
-xgb.fit(X[lasso_var], y)
-predicted_y = predict(xgb, new_data=X[lasso_var])
+xgb.fit(X, y)
+predicted_y = predict(xgb, new_data=X)
 print(error_evaluation(predicted_y, true_y=df_train[Y]))
-predicted_y = predict(xgb, new_data=df_test_numeric[lasso_var])
+predicted_y = predict(xgb, new_data=df_test_numeric[final_candidate])
 print(error_evaluation(predicted_y, true_y=df_test_y[Y]))
 
 stop = timeit.default_timer()
 print('Time: ', stop - start)
 
-# random forest variable
-xgb = XGBClassifier(objective='reg:squarederror',
-                    tree_method = 'hist',
-                    learning_rate = 0.03,
-                    subsample = 0.8,
-                    colsample_bytree = 0.8,
-                    n_estimators = 250,
-                    max_depth = 4
-)
-xgb.fit(X[RF_var], y)
-predicted_y = predict(xgb, new_data=X[RF_var])
-print(error_evaluation(predicted_y, true_y=df_train[Y]))
-predicted_y = predict(xgb, new_data=df_test_numeric[RF_var])
-print(error_evaluation(predicted_y, true_y=df_test_y[Y]))
