@@ -7,7 +7,7 @@ FOLDER = '/Users/fanyang/Dropbox/uiuc/cs598/UIUC_SPL/UIUC_PSL/Project2/'
 
 train = pd.read_csv(FOLDER +'train_ini.csv', parse_dates = ['Date'])
 # df_train.dtypes.value_counts()
-test = pd.read_csv('/Users/fanyang/Dropbox/uiuc/cs598/UIUC_SPL/UIUC_PSL/Project2/test.csv', parse_dates = ['Date'])
+test = pd.read_csv(FOLDER + 'test.csv', parse_dates = ['Date'])
 # data processing - change date fto datetime format and get year, month and week indicator
 # df_train['Date'] = pd.to_datetime(df_train['Date'])
 def data_clean(data):
@@ -17,8 +17,8 @@ def data_clean(data):
     data['Week'] = data.apply(lambda x: x['Week'] - 1 if x['Year'] == 2010 else x['Week'], axis=1)
 
     return data
-train = data_clean(train)
-test = data_clean(test)
+# train = data_clean(train)
+# test = data_clean(test)
 # df_train['Week'] = df_train['Date'].dt.isocalendar().week
 # df_train['Year'] = df_train['Date'].dt.isocalendar().year
 # df_train['Month'] = pd.DatetimeIndex(df_train['Date']).month
@@ -29,19 +29,25 @@ def mypredict(train, test, next_fold, t):
     # start_date = datetime.date(2011, 3, 1) + relativedelta(months=delta_m)
     # end_date = datetime.date(2011, 5, 1) + relativedelta(months=delta_m)
     # test['fold'] = 0
+    clean_train = data_clean(train)
+    clean_test = data_clean(test)
 
-    test['Last_Year'] = test['Year'] - 1
+    if t >1:
+        clean_next_fold = data_clean(next_fold)
+        clean_train = pd.concat([train, clean_next_fold], ignore_index= True)
 
-    test_pred = test.merge(train, left_on=['Store', 'Dept', 'Last_Year', 'Week'],
-                             right_on=['Store', 'Dept', 'Year', 'Week'],
-                             suffixes=('', '_pre')) ['Store', 'Dept', 'Date', 'IsHoliday', 'Week', 'Year', 'Month',
-                                                     'Weekly_Sales']
+    clean_test['Last_Year'] = clean_test['Year'] - 1
+
+    test_pred = clean_test.merge(clean_train,
+                                 left_on=['Store', 'Dept', 'Last_Year', 'Week'],
+                                 right_on=['Store', 'Dept', 'Year', 'Week'],
+                                 # indicator=True,
+                                 how = 'left',
+                                 suffixes=('', '_pre'))
     test_pred =test_pred.rename(columns ={'Weekly_Sales': 'Weekly_Pred'})
 
 
-
-
-    return (train,test_pred)
+    return (clean_train,test_pred)
 
 # next_fold = pd.read_csv(FOLDER + 'fold_1.csv', parse_dates=['Date'])
 # scoring_df = next_fold.merge(test_pred, on=['Date', 'Store', 'Dept'], how='left')
@@ -66,10 +72,10 @@ for t in range(1, n_folds+1):
     # Load fold file
     # You should add this to your training data in the next call to mypredict()
     fold_file = 'fold_{t}.csv'.format(t=t)
-    next_fold = pd.read_csv(fold_file, parse_dates=['Date'])
+    next_fold = pd.read_csv(FOLDER + fold_file, parse_dates=['Date'])
 
     # extract predictions matching up to the current fold
-    scoring_df = next_fold.merge(test_pred, on=['Date', 'Store', 'Dept'], how='left')
+    scoring_df = next_fold.merge(test_pred, on=['Date', 'Store', 'Dept'], how='left', indicator=True)
 
     # extract weights and convert to numpy arrays for wae calculation
     weights = scoring_df['IsHoliday_x'].apply(lambda is_holiday:5 if is_holiday else 1).to_numpy()
