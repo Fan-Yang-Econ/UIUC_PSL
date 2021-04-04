@@ -366,7 +366,7 @@ if __name__ == '__main__':
     
     parser.add_argument('--folder',
                         help='folder for data',
-                        default='.')
+                        default=None)
     parser.add_argument('--stage',
                         help='Whether it is used for `tuning` or `submission`',
                         default='submission')
@@ -378,8 +378,8 @@ if __name__ == '__main__':
     parsed_args = parser.parse_args()
     
     FOLDER = parsed_args.folder
-    if FOLDER == '.':
-        FOLDER = os.path.abspath(FOLDER)
+    if FOLDER is None:
+        FOLDER = os.path.dirname(os.path.realpath(__file__))
     
     TUNING_OR_SUBMISSION = parsed_args.stage
     
@@ -491,4 +491,3 @@ if __name__ == '__main__':
         
         print(dict_lasso_result['best_model'])
         print(dict_boosting_tree_result['best_model'])
-        
