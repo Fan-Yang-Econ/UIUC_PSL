@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import datetime
 from dateutil.relativedelta import relativedelta
-
+# use last year to predict
 FOLDER = '/Users/fanyang/Dropbox/uiuc/cs598/UIUC_SPL/UIUC_PSL/Project2/'
 
 train = pd.read_csv(FOLDER +'train_ini.csv', parse_dates = ['Date'])
@@ -14,7 +14,7 @@ def data_clean(data):
     data['Week'] = data['Date'].dt.isocalendar().week
     data['Year'] = data['Date'].dt.isocalendar().year
     data['Month'] = pd.DatetimeIndex(data['Date']).month
-    data['Week'] = data.apply(lambda x: x['Week'] - 1 if x['Year'] == 2010 else x['Week'], axis=1)
+    # data['Week'] = data.apply(lambda x: x['Week'] - 1 if x['Year'] == 2010 else x['Week'], axis=1)
 
     return data
 # train = data_clean(train)
@@ -64,7 +64,7 @@ wae = []
 
 # time-series CV
 for t in range(1, n_folds+1):
-    print(f'Fold{t}...')
+    # print(f'Fold{t}...')
 
     # *** THIS IS YOUR PREDICTION FUNCTION ***
     train, test_pred = mypredict(train, test, next_fold, t)
