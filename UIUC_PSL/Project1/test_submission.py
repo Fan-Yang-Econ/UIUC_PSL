@@ -40,8 +40,8 @@ def prepare_data(df_all, TEST_ID, FOLDER, write_to_csv=True, str_testID=str_test
     df_test_full = df_test_full.reset_index()
     
     if write_to_csv:
-        df_train_full.to_csv(os.path.join(FOLDER, "train.csv"), index=False)
-        df_test_full[[i for i in df_test_full.columns if i != 'Sale_Price']].to_csv(os.path.join(FOLDER, "test.csv"), index=False)
+        df_train_full.to_csv(os.path.join(FOLDER, "submit/train.csv"), index=False)
+        df_test_full[[i for i in df_test_full.columns if i != 'Sale_Price']].to_csv(os.path.join(FOLDER, "submit/test.csv"), index=False)
         df_test_full[[i for i in df_test_full.columns if i == 'Sale_Price']].to_csv(os.path.join(FOLDER, "test_y.csv"), index=False)
     
     return {'df_test': df_test_full, 'df_train': df_train_full}

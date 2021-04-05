@@ -10,14 +10,14 @@ import logging
 
 import numpy as np
 import pandas as pd
+import xgboost as xgb_model
+
 from sklearn import linear_model
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import StandardScaler
-# import xgboost as xgb
-import matplotlib
-import matplotlib.pyplot as plt
-import xgboost as xgb_model
 from sklearn.model_selection import GridSearchCV
+
+# import xgboost as xgb
 
 Y = 'Sale_Price'
 BEST_ALPHA_RIDGE = 0.449398459072167
@@ -367,10 +367,7 @@ if __name__ == '__main__':
     parser.add_argument('--folder',
                         help='folder for data',
                         default=None)
-    parser.add_argument('--stage',
-                        help='Whether it is used for `tuning` or `submission`',
-                        default='submission')
-    #
+    
     # FOLDER = '/Users/yafa/Dropbox/Library/UIUC_PSL/UIUC_PSL/Project1/'
     # FOLDER = '/Users/fanyang/Dropbox/uiuc/cs598/UIUC_SPL/UIUC_PSL/Project1/'
     # parsed_args = parser.parse_args(['--folder', '/Users/yafa/Dropbox/Library/UIUC_PSL/UIUC_PSL/Project1/', '--stage', 'tuning'])
@@ -381,8 +378,6 @@ if __name__ == '__main__':
     if FOLDER is None:
         FOLDER = os.path.dirname(os.path.realpath(__file__))
     
-    TUNING_OR_SUBMISSION = parsed_args.stage
-    
     print(parsed_args)
     
     ###########################################
@@ -391,11 +386,11 @@ if __name__ == '__main__':
     # '/Users/fanyang/Dropbox/uiuc/cs598/UIUC_SPL/Project1/train.csv'
     # '/Users/fanyang/Dropbox/uiuc/cs598/UIUC_SPL/UIUC_PSL/Project1/train.csv'
     
-    df_train = pd.read_csv(os.path.join(FOLDER, "train.csv"))
+    df_train = pd.read_csv(os.path.join(FOLDER, "submit/train.csv"))
     df_train = df_train.reindex()
     y_series_train = df_train[Y]
     
-    df_test = pd.read_csv(os.path.join(FOLDER, "test.csv"))
+    df_test = pd.read_csv(os.path.join(FOLDER, "submit/test.csv"))
     df_test = df_test.reindex()
     
     pid_series_test = df_test['PID']
@@ -414,80 +409,20 @@ if __name__ == '__main__':
     # df_train_numeric = df_train_numeric[common_vars]
     # df_test_numeric = df_test_numeric[common_vars]
     #
-    df_test_y = pd.read_csv(os.path.join(FOLDER, "test_y.csv"))
-    df_test_y = df_test_y.reindex()
     
-    if TUNING_OR_SUBMISSION == 'submission':
-        
-        for file_name, model_cls in [('mysubmission1.txt', LassoModel), ('mysubmission2.txt', BoostingTreeMode)]:
-            # model_cls = LassoModel
-            # model_cls = BoostingTreeMode
-            model_obj = model_cls(df_train=df_train_numeric, y_series=y_series_train)
-            model_obj.train()
-            predicted_y = model_obj.predict(new_data=df_test_numeric)
-            # self=model_obj
-            print(error_evaluation(predicted_y, true_y=df_test_y[Y]))
-            
-            pd.DataFrame({'PID': pid_series_test,
-                          'Sale_Price': predicted_y}).to_csv(os.path.join(FOLDER, file_name), index=False)
+    # DO NOT LOAD test_y
+    # https://piazza.com/class/kjvsp15j2g07ac?cid=297
+    # df_test_y = pd.read_csv(os.path.join(FOLDER, "test_y.csv"))
+    # df_test_y = df_test_y.reindex()
     
-    elif TUNING_OR_SUBMISSION == 'tuning':
+    for file_name, model_cls in [('mysubmission1.txt', LassoModel), ('mysubmission2.txt', BoostingTreeMode)]:
+        # model_cls = LassoModel
+        # model_cls = BoostingTreeMode
+        model_obj = model_cls(df_train=df_train_numeric, y_series=y_series_train)
+        model_obj.train()
+        predicted_y = model_obj.predict(new_data=df_test_numeric)
+        # self=model_obj
+        # print(error_evaluation(predicted_y, true_y=df_test_y[Y]))
         
-        def cv(list_tuning_parameters, model_class, df_train, y_series_train, df_test, y_series_test):
-            dict_result = {
-                'list_models': [],
-                'best_model': None
-            }
-            
-            for tuning_parameters in list_tuning_parameters:
-                model_obj = model_class(df_train=df_train, y_series=y_series_train, tuning_parameters=tuning_parameters)
-                model_obj.train()
-                predicted_y = model_obj.predict(df_test)
-                
-                test_error = error_evaluation(predicted_y, true_y=y_series_test)
-                
-                _result_dict = {
-                    'model': model_obj,
-                    'tuning_parameter': tuning_parameters,
-                    'test_error': test_error
-                }
-                
-                if dict_result['best_model'] is None:
-                    dict_result['best_model'] = _result_dict
-                
-                dict_result['list_models'].append(_result_dict)
-            
-            return dict_result
-        
-        
-        def plot_bst_tree(bst):
-            fig = matplotlib.pyplot.gcf()
-            # xgb.plot_importance(bst)
-            xgb.plot_tree(bst, num_trees=1)
-            fig.set_size_inches(100, 50)
-            plt.figure(figsize=[100., 50.]).show()
-            plt.savefig('/Users/yafa/Downloads/tree2.png')
-        
-        
-        dict_lasso_result = cv(
-            list_tuning_parameters=[{'alpha': 0.01}, {'alpha': 0.01}, {'alpha': 0.0001}], model_class=LassoModel,
-            df_train=df_train_numeric,
-            df_test=df_test_numeric,
-            y_series_train=df_train[Y],
-            y_series_test=df_test_y[Y]
-        )
-        
-        dict_boosting_tree_result = cv(
-            list_tuning_parameters=[{'max_depth': 3, 'num_round': 3},
-                                    {'max_depth': 4, 'num_round': 4},
-                                    {'max_depth': 5, 'num_round': 4},
-                                    {'max_depth': 4, 'num_round': 5},
-                                    {'max_depth': 5, 'num_round': 5}], model_class=LassoModel,
-            df_train=df_train_numeric,
-            df_test=df_test_numeric,
-            y_series_train=df_train[Y],
-            y_series_test=df_test_y[Y]
-        )
-        
-        print(dict_lasso_result['best_model'])
-        print(dict_boosting_tree_result['best_model'])
+        pd.DataFrame({'PID': pid_series_test,
+                      'Sale_Price': predicted_y}).to_csv(os.path.join(FOLDER, file_name), index=False)

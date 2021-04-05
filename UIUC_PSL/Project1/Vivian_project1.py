@@ -160,11 +160,11 @@ def predict(model, new_data, Y_COL_NAME=Y):
 Y = 'Sale_Price'
 FOLDER = '/Users/fanyang/Dropbox/uiuc/cs598/UIUC_SPL/UIUC_PSL/Project1/'
 
-df_train = pd.read_csv(os.path.join(FOLDER, "train.csv"))
+df_train = pd.read_csv(os.path.join(FOLDER, "submit/train.csv"))
 df_train = df_train.reindex()
 
 
-df_test = pd.read_csv(os.path.join(FOLDER, "test.csv"))
+df_test = pd.read_csv(os.path.join(FOLDER, "submit/test.csv"))
 df_test = df_test.reindex()
 
 
