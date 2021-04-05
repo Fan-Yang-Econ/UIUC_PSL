@@ -115,18 +115,28 @@ mask = (df_test['Date'] >= start_date) & (df_test['Date'] <end_date)
 current_test = df_test[mask]
 df_test['Weekly_Pred'] = 0.0
 
+dic_missing = {}
+
 store_list =  current_test['Store'].unique().tolist()
 for store in store_list:
     for dept in current_test[current_test['Store'] == store]['Dept'].unique().tolist():
         mask = (df_train['Store'] == store) & (df_train['Dept'] == dept)
         current_train = df_train[mask]
-        y = current_train['Weekly_Sales']
-        x_list = [col for col in df_train.columns if col not in ['Date', 'Store', 'Dept', 'Weekly_Sales', 'IsHoliday', 'Week', 'Month']]
-        X = current_train[x_list]
-        reg = LinearRegression().fit(X, y)
-        test_mask = (df_test['Store'] == store) & (df_test['Dept'] == dept)
-        tmp_test = df_test[test_mask]
-        df_test.loc[test_mask, 'Weekly_Pred'] = reg.predict(tmp_test[x_list])
+        if current_train.shape[0] > 0:
+            y = current_train['Weekly_Sales']
+            x_list = [col for col in df_train.columns if col not in ['Date', 'Store', 'Dept', 'Weekly_Sales', 'IsHoliday', 'Week', 'Month']]
+            X = current_train[x_list]
+            reg = LinearRegression().fit(X, y)
+            test_mask = (df_test['Store'] == store) & (df_test['Dept'] == dept)
+            tmp_test = df_test[test_mask]
+            df_test.loc[test_mask, 'Weekly_Pred'] = reg.predict(tmp_test[x_list])
+        else:
+            if store not in dic_missing.keys():
+                dic_missing[store] = [dept]
+            else:
+                dic_missing[store].append(dept)
+
+
 
 
 
