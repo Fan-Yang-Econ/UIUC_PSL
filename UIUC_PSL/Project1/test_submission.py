@@ -1,7 +1,7 @@
 import os
 from pprint import pprint
 from copy import deepcopy
-
+import timeit
 import pandas as pd
 
 from UIUC_PSL.Project1.mymain import transform_category_vars, Y, \
@@ -13,7 +13,8 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 1000)
 pd.set_option('display.max_colwidth', 40)
 
-FOLDER = '/Users/yafa/Dropbox/Library/UIUC_PSL/UIUC_PSL/Project1/'
+# FOLDER = '/Users/yafa/Dropbox/Library/UIUC_PSL/UIUC_PSL/Project1/'
+FOLDER = '/Users/fanyang/Dropbox/uiuc/cs598/UIUC_SPL/UIUC_PSL/Project1/'
 df_ames = pd.read_csv(os.path.join(FOLDER, 'Ames_data.csv'))
 #
 # df_ames_numeric, dict_onehot_encoder = \
@@ -58,7 +59,7 @@ for TEST_ID in range(0, 10):
     df_train_numeric, dict_onehot_encoder = \
         transform_category_vars(df=clean_data(deepcopy(df_train), is_training_data=False),
                                 dict_one_hot_encoder=None)
-    
+
     df_test_numeric, dict_onehot_encoder_ = \
         transform_category_vars(df=clean_data(deepcopy(df_test), is_training_data=False),
                                 dict_one_hot_encoder=dict_onehot_encoder)
@@ -70,19 +71,24 @@ for TEST_ID in range(0, 10):
     
     df_train_numeric = impute_missing_data(df_train_numeric)
     df_test_numeric = impute_missing_data(df_test_numeric)
-    
+
+    # LassoModel, BoostingTreeMode
     for model_cls in [LassoModel, BoostingTreeMode]:
         # model_cls = BoostingTreeMode
+        start = timeit.default_timer()
         model_obj = model_cls(df_train=df_train_numeric,
                               y_series=df_train[Y])
         model_obj.train()
-        
+        stop = timeit.default_timer()
+        total_time = stop - start
+        print('Time: ', stop - start)
         # self=model_obj
         result_dict = {
             'test_id': TEST_ID,
             'testing_error': error_evaluation(model_obj.predict(new_data=df_test_numeric), true_y=df_test[Y]),
             'train_error': error_evaluation(model_obj.predict(new_data=df_train_numeric), true_y=df_train[Y]),
-            'model_name': model_cls.__name__
+            'model_name': model_cls.__name__,
+            'run_time' : total_time
         }
         
         pprint(result_dict)
@@ -90,6 +96,8 @@ for TEST_ID in range(0, 10):
     
   
 pprint(list_result)
+# pd.DataFrame.from_dict(list_result)
+
 # pprint(list_result)
 # [{'model_name': 'LassoModel',
 #   'test_id': 0,

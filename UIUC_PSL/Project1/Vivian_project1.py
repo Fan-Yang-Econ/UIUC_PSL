@@ -23,6 +23,7 @@ from sklearn.metrics import mean_squared_error
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
+Y = 'Sale_Price'
 
 def _get_one_hot_encoder_df(_col_name, df_train):
     """
@@ -363,7 +364,6 @@ tuned_parameters = {
         'max_samples' : [0.3, 0.5, 0.8],
         'n_estimators': [400, 600, 800],
         'min_samples_split': [0.001, 0.002, 0.005]
-        # 'min_samples_leaf': [0.01, 0.02, 0.05]
         }
 n_folds = 5
 clf = RandomizedSearchCV(RF,
@@ -438,20 +438,30 @@ xgb = XGBRegressor(objective='reg:squarederror'
                     # learning_rate = 0.05,
                     # subsample = 0.8,
                     # colsample_bytree = 0.8
-                    )
+                 )
+# params = {
+#         'learning_rate' :[0.1, 0.05, 0.03, 0.01], # best: 0.05
+#         'gamma': [0, 0.1, 0.5, 1, 1.5], # best: 0
+#         'subsample': [0.6, 0.8, 1.0], # best: 1
+#         'colsample_bytree': [0.6, 0.8, 1.0], # best: 0.8
+#         'max_depth': [4, 5, 6], # best: 4
+#         'n_estimators': [150, 200, 250, 300, 500] # best: 250
+#         }
+
 params = {
-'learning_rate' :[0.1, 0.05, 0.03, 0.01],
-        'gamma': [0, 0.1, 0.5, 1, 1.5],
-        'subsample': [0.6, 0.8, 1.0],
-        'colsample_bytree': [0.6, 0.8, 1.0],
-        'max_depth': [4, 5, 6],
-        'n_estimators': [150, 200, 250, 300, 500]
+        'learning_rate' :[0.03, 0.02, 0.01], # best: 0.03
+        'gamma': [0, 0.1, 0.5, 1, 1.5], # best: 0
+        'subsample': [0.6, 0.8, 1.0], # best: 0.8
+        'colsample_bytree': [0.6, 0.8, 1.0], # best: 0.8
+        'max_depth': [4, 5, 6], # best: 4
+        'n_estimators': [500, 700, 900, 1100] # best: 700
         }
+
 n_folds = 5
 
 random_search = RandomizedSearchCV(xgb,
                                    param_distributions=params,
-                                   n_iter=30,
+                                   n_iter=50,
                                    cv = n_folds,
                                    scoring='neg_mean_squared_error',
                                    n_jobs=-1,
