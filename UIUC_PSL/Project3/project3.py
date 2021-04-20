@@ -48,7 +48,7 @@ def review_to_words( raw_review ):
 
 
 
-    # use first data to get number of words
+# use first data to get number of words
 i = 1
 data = 'train_' + str(i) + '.csv'
 df_train = pd.read_csv(os.path.join(FOLDER, data))
@@ -95,6 +95,8 @@ model.fit(X , y)
 df_model_coef = pd.DataFrame(model.coef_.reshape(-1,), columns=['coef']).sort_values('coef', ascending=False)
 lasso_var = df_model_coef[abs(df_model_coef['coef'])>0].index.tolist()
 myvocab = features.loc[lasso_var,:]['features'].tolist()
+
+
 
 
 #use selected word to train models
