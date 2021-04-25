@@ -1,45 +1,48 @@
+import os
+import re
 
 import pandas as pd
-import os
 from bs4 import BeautifulSoup
-import re
+
 import nltk
+nltk.download('stopwords')
+
 from nltk.corpus import stopwords
-import ssl
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.linear_model import LogisticRegression
 import numpy as np
-from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
-from sklearn.metrics import roc_auc_score
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import GridSearchCV
 
-FOLDER = '/Users/fanyang/Dropbox/uiuc/cs598/UIUC_SPL/UIUC_PSL/Project3/'
+# FOLDER = '/Users/fanyang/Dropbox/uiuc/cs598/UIUC_SPL/UIUC_PSL/Project3/'; TEST_FILE_NAME = 'test_0.csv'; TRAIN_FILE_NAME = 'train_0.csv'
+# FOLDER = '/Users/yafa/Dropbox/Library/UIUC_PSL/UIUC_PSL/Project3/'; TEST_FILE_NAME = 'test_0.csv'; TRAIN_FILE_NAME = 'train_0.csv'
 
-#how to update the foler or path so they can grade it?
+FOLDER = ''
+TEST_FILE_NAME = 'test.csv'
+TRAIN_FILE_NAME = 'train.csv'
 
 # ###############################
 # load the vocab file
 ##################################
-with open(os.path.join(FOLDER, 'myvocab.txt')) as f:
-        content = f.readlines()
-        # you may also want to remove whitespace characters like `\n` at the end of each line
-final_vocab = [x.strip() for x in content]
 
+with open(os.path.join(FOLDER, 'myvocab.txt')) as f:
+    content = f.readlines()
+    # you may also want to remove whitespace characters like `\n` at the end of each line
+final_vocab = [x.strip() for x in content]
 
 # ###############################
 # load the training data
 ##################################
 
-data = 'train.csv'
-df_train = pd.read_csv(os.path.join(FOLDER, data))
+df_train = pd.read_csv(os.path.join(FOLDER, TRAIN_FILE_NAME))
+
 
 #########################################
-#train model
+# train model
 #######################################
 
 # prepare data
 # convert review to words; clean data, remove non-letters, stop words
-def review_to_words( raw_review ):
+def review_to_words(raw_review):
     # Function to convert a raw review to a string of words
     # The input is a single string (a raw movie review), and
     # the output is a single string (a preprocessed movie review)
@@ -57,13 +60,14 @@ def review_to_words( raw_review ):
     meaningful_words = [w for w in words if not w in stops]
     # 6. Join the words back into one string separated by space,
     # and return the result.
-    return( " ".join( meaningful_words ))
+    return (" ".join(meaningful_words))
+
 
 num_reviews = df_train['review'].size
 clean_train_reviews = []
-for j in range( num_reviews ):
-    clean_train_reviews.append(review_to_words(df_train["review"][j] ))
-vectorizer = CountVectorizer(analyzer = "word", vocabulary = final_vocab)
+for j in range(num_reviews):
+    clean_train_reviews.append(review_to_words(df_train["review"][j]))
+vectorizer = CountVectorizer(analyzer="word", vocabulary=final_vocab)
 train_data_features = vectorizer.fit_transform(clean_train_reviews)
 train_data_features = train_data_features.toarray()
 X = train_data_features
@@ -82,13 +86,11 @@ best_alpha = clf.best_params_['C']
 model = LogisticRegression(penalty='l2', solver='liblinear', C=best_alpha)
 model.fit(X, y)
 
-
 ########################################
-#load test data
+# load test data
 #######################################
 
-test = 'test.csv'
-df_test = pd.read_csv(os.path.join(FOLDER, test))
+df_test = pd.read_csv(os.path.join(FOLDER, TEST_FILE_NAME))
 
 #####################################
 # Compute prediction
@@ -99,12 +101,12 @@ df_test = pd.read_csv(os.path.join(FOLDER, test))
 num_reviews = len(df_test["review"])
 clean_test_reviews = []
 for k in range(num_reviews):
-    clean_review = review_to_words(df_test["review"][k] )
-    clean_test_reviews.append( clean_review )
+    clean_review = review_to_words(df_test["review"][k])
+    clean_test_reviews.append(clean_review)
 test_data_features = vectorizer.transform(clean_test_reviews)
 test_data_features = test_data_features.toarray()
 
 # test auc
-pred_test_y = model.predict_proba(test_data_features)[:,1]
+pred_test_y = model.predict_proba(test_data_features)[:, 1]
 df_test['prob'] = pred_test_y
-df_test[['id', 'prob']].to_csv(os.path.join(FOLDER, 'mysubmission.txt'), columns=['id', 'prob'], index=None, sep=' ', mode='a')
+df_test[['id', 'prob']].to_csv(os.path.join(FOLDER, 'mysubmission.txt'), columns=['id', 'prob'], index=None, sep='\t')
