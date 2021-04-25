@@ -1,5 +1,6 @@
 import os
 import re
+import argparse
 
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -16,9 +17,26 @@ from sklearn.model_selection import GridSearchCV
 # FOLDER = '/Users/fanyang/Dropbox/uiuc/cs598/UIUC_SPL/UIUC_PSL/Project3/'; TEST_FILE_NAME = 'test_0.csv'; TRAIN_FILE_NAME = 'train_0.csv'
 # FOLDER = '/Users/yafa/Dropbox/Library/UIUC_PSL/UIUC_PSL/Project3/'; TEST_FILE_NAME = 'test_0.csv'; TRAIN_FILE_NAME = 'train_0.csv'
 
-FOLDER = ''
-TEST_FILE_NAME = 'test.csv'
-TRAIN_FILE_NAME = 'train.csv'
+pd.set_option('display.max_columns', None)
+pd.set_option('display.width', 1000)
+pd.set_option('display.max_colwidth', 40)
+
+parser = argparse.ArgumentParser(
+    description="run_project_3.py")
+
+parser.add_argument('--folder',
+                    help='folder for data',
+                    default='')
+parser.add_argument('--test_file_name',
+                    default='test.csv')
+parser.add_argument('--train_file_name',
+                    default='train.csv')
+
+parsed_args = parser.parse_args()
+
+FOLDER = parsed_args.folder
+TEST_FILE_NAME = parsed_args.test_file_name
+TRAIN_FILE_NAME = parsed_args.train_file_name
 
 # ###############################
 # load the vocab file
