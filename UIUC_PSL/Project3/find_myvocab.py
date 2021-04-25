@@ -12,24 +12,20 @@ import numpy as np
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 from sklearn.metrics import roc_auc_score
 from sklearn.ensemble import RandomForestClassifier
+FOLDER = '/Users/fanyang/Dropbox/uiuc/cs598/UIUC_SPL/UIUC_PSL/Project3/'
 
-# split data to 5 set of train/test
-data = pd.read_csv("/Users/fanyang/Dropbox/uiuc/cs598/UIUC_SPL/UIUC_PSL/Project3/alldata.csv")
-testIDs = pd.read_csv("/Users/fanyang/Dropbox/uiuc/cs598/UIUC_SPL/UIUC_PSL/Project3/splits_S21.csv")
-for i in range(5):
-    # i = 0
-    id1 = testIDs.iloc[:,i].tolist()
-    df_train  = data[data['id'].isin(id1)][['id', 'sentiment', 'review']]
-    df_test = data[~data['id'].isin(id1)][['id', 'review']]
-    df_test_y = data[~data['id'].isin(id1)][['id','sentiment', 'score']]
-    df_train.to_csv('train_' + str(i) + '.csv' , index=False)
-    df_test.to_csv('test_' + str(i) + '.csv' , index=False)
-    df_test_y.to_csv('test_y_' + str(i) + '.csv' , index=False)
+#read data
+data = 'alldata' + '.csv'
+df_train = pd.read_csv(os.path.join(FOLDER, data))
 
 
 
+# convert review to words
+# remove html
+# remove non-letters
+# convert to lower case
+# remove stop word
 
-# convert review to words; clean data, remove non-letters, stop words
 def review_to_words( raw_review ):
     # Function to convert a raw review to a string of words
     # The input is a single string (a raw movie review), and
@@ -51,20 +47,14 @@ def review_to_words( raw_review ):
     return( " ".join( meaningful_words ))
 
 
-FOLDER = '/Users/fanyang/Dropbox/uiuc/cs598/UIUC_SPL/UIUC_PSL/Project3/'
-
-
-data = 'alldata' + '.csv'
-df_train = pd.read_csv(os.path.join(FOLDER, data))
 num_reviews = df_train['review'].size
-
 ini_clean_train_reviews = []
-# Loop over each review; create an index i that goes from 0 to the length of the movie review list
 for j in range( num_reviews ):
-    # Call our function for each one, and add the result to the list of clean reviews
     ini_clean_train_reviews.append(review_to_words( df_train["review"][j] ))
 
-# Initialize the "CountVectorizer" object
+
+
+# convert word to vectorizer use ngram 1-4
 train_vectorizer = CountVectorizer(analyzer = "word",   \
                              tokenizer = None,    \
                              preprocessor = None, \
@@ -77,8 +67,6 @@ ini_train_data_features = train_vectorizer.fit_transform(ini_clean_train_reviews
 ini_train_data_features = ini_train_data_features.toarray()
 
 vocab = train_vectorizer.get_feature_names()
-# dist = np.sum(ini_train_data_features, axis=0)
-# features = pd.DataFrame(zip(vocab, dist), columns=['features', 'count']).sort_values(by=['count'])
 features = pd.DataFrame(vocab, columns=['features'])
 
 
@@ -121,9 +109,15 @@ abs_result = np.abs(t_result)
 df_tresult = pd.DataFrame(zip(t_result,abs_result), columns=['t_test', 'abs_value']).sort_values('abs_value', ascending=False)
 # sort_result = -np.sort(-np.abs(t_result) )[:1000]
 
-word_id = df_tresult.iloc[:2000].index.tolist()
+word_id = df_tresult.iloc[:1000].index.tolist()
 pos_id =df_tresult.loc[word_id,][df_tresult.loc[word_id,]['t_test']>0].index.tolist()
 neg_id =df_tresult.loc[word_id,][df_tresult.loc[word_id,]['t_test']<0].index.tolist()
+
+
+
+
+
+
 
 # features.loc[pos_id[:50]]
 # features.loc[neg_id[:50]]
@@ -135,7 +129,4 @@ with open(os.path.join(FOLDER,'myvocab.txt'), '+w') as f:
     f.write('\n'.join(all_select_vocab))
 
 lasso_rank = df_tresult.loc[lasso_var].sort_values('abs_value', ascending=False)
-lasso_top_1000_id = lasso_rank.iloc[:1000].index.tolist()
-lasso_top_1000 = features.loc[lasso_top_1000_id,:]['features'].tolist()
-
-
+lasso_top_1000 = lasso_rank.iloc[:1000].index.tolist()

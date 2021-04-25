@@ -10,6 +10,7 @@ from sklearn.linear_model import LogisticRegression
 import numpy as np
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 from sklearn.metrics import roc_auc_score
+from sklearn.ensemble import RandomForestClassifier
 # try:
 #     _create_unverified_https_context = ssl._create_unverified_context
 # except AttributeError:
@@ -48,95 +49,53 @@ def review_to_words( raw_review ):
 
 
 
-# use first data to get number of words
-i = 1
-data = 'train_' + str(i) + '.csv'
-df_train = pd.read_csv(os.path.join(FOLDER, data))
-num_reviews = df_train['review'].size
+# ###############################
+# load the vocab file
+with open(os.path.join(FOLDER, 'myvocab.txt')) as f:
+        content = f.readlines()
+final_vocab = [x.strip() for x in content]
 
-clean_train_reviews = []
-# Loop over each review; create an index i that goes from 0 to the length of the movie review list
-for j in range( num_reviews ):
-    # Call our function for each one, and add the result to the list of clean reviews
-    clean_train_reviews.append( review_to_words( df_train["review"][j] ))
+# final_vocab = lasso_top_1000
+# final_vocab = all_select_vocab
 
-# Initialize the "CountVectorizer" object
-vectorizer = CountVectorizer(analyzer = "word",   \
-                             tokenizer = None,    \
-                             preprocessor = None, \
-                             stop_words = None  \
-                             # max_features = 3000
-)
-
-train_data_features = vectorizer.fit_transform(clean_train_reviews)
-train_data_features = train_data_features.toarray()
-
-vocab = vectorizer.get_feature_names()
-dist = np.sum(train_data_features, axis=0)
-features = pd.DataFrame(zip(vocab, dist), columns=['features', 'count']).sort_values(by=['count'])
-
-
-# run lasso model to select words
-X = train_data_features
-y = df_train['sentiment']
-
-# cross validation for alpha selection
-lasso = LogisticRegression(penalty='l1', solver='liblinear')
-alphas = np.logspace(-1, 0, 5)
-tuned_parameters = [{'C': alphas}]
-n_folds = 5
-clf = GridSearchCV(lasso, tuned_parameters, cv=n_folds, refit=False, scoring='roc_auc')
-clf.fit(X , y)
-# clf.cv_results_['mean_test_score']
-best_alpha = clf.best_params_['C']
-# print(best_alpha)
-model = LogisticRegression(penalty='l1', solver='liblinear', C = best_alpha)
-model.fit(X , y)
-df_model_coef = pd.DataFrame(model.coef_.reshape(-1,), columns=['coef']).sort_values('coef', ascending=False)
-lasso_var = df_model_coef[abs(df_model_coef['coef'])>0].index.tolist()
-myvocab = features.loc[lasso_var,:]['features'].tolist()
-
-
-
-
-#use selected word to train models
-list_result = []
+final_result_lasso_inner_v2 = []
 for i in range(5):
+    ######
+    ##  read training data
     data = 'train_' + str(i) + '.csv'
     df_train = pd.read_csv(os.path.join(FOLDER, data))
+
+    #######
+    #train model
     num_reviews = df_train['review'].size
-
     clean_train_reviews = []
-# Loop over each review; create an index i that goes from 0 to the length of the movie review list
     for j in range( num_reviews ):
-        # Call our function for each one, and add the result to the list of clean reviews
-        clean_train_reviews.append( review_to_words( df_train["review"][j] ))
-
-
-    vectorizer = CountVectorizer(analyzer = "word", vocabulary = myvocab)
-
+        clean_train_reviews.append( review_to_words(df_train["review"][j] ))
+    vectorizer = CountVectorizer(analyzer = "word", vocabulary = final_vocab)
     train_data_features = vectorizer.fit_transform(clean_train_reviews)
     train_data_features = train_data_features.toarray()
-
-    # run ridge model to select words
     X = train_data_features
     y = df_train['sentiment']
-
+    # run ridge model to select words
     ridge = LogisticRegression(penalty='l2', solver='liblinear')
-    alphas = np.logspace(-2, 0, 10)
+    np.logspace(-2, 0, 10)
+
+    # alphas = np.logspace(-1, 1, 5)
+    # clf.cv_results_['mean_test_score']
+
     tuned_parameters = [{'C': alphas}]
     n_folds = 5
     clf = GridSearchCV(ridge, tuned_parameters, cv=n_folds, refit=False, scoring='roc_auc')
     clf.fit(X, y)
-    # clf.cv_results_['mean_test_score']
     best_alpha = clf.best_params_['C']
     print('for data_'+str(i) + ': best parameter is ' + str(best_alpha))
+
     model = LogisticRegression(penalty='l2', solver='liblinear', C=best_alpha)
     model.fit(X, y)
+    # training auc
     pred_y = model.predict_proba(X)[:, 1]
     train_auc = roc_auc_score(y, pred_y)
     print('for data_'+str(i) + ': training auc is ' + str(train_auc))
-
 
     #get test data
     test = 'test_' + str(i) + '.csv'
@@ -150,11 +109,10 @@ for i in range(5):
     for k in range(num_reviews):
         clean_review = review_to_words(df_test["review"][k] )
         clean_test_reviews.append( clean_review )
-
-    # Get a bag of words for the test set, and convert to a numpy array
     test_data_features = vectorizer.transform(clean_test_reviews)
     test_data_features = test_data_features.toarray()
 
+    # test auc
     pred_test_y = model.predict_proba(test_data_features)[:,1]
     test_auc = roc_auc_score(df_test_y['sentiment'],pred_test_y)
     print('for data_'+str(i) + ': test auc is ' + str(test_auc))
@@ -166,4 +124,15 @@ for i in range(5):
         'test_auc': test_auc,
     }
 
-    list_result.append(result_dict)
+    final_result_lasso_inner_v2.append(result_dict)
+    # final_result_lasso_ridge - use intersection of lasso and t-test, then run ridge
+    # final_result_lasso - use top 1000 lasso variable, then run model
+    # final_result_lasso_top_1000
+
+    # pd.DataFrame.from_dict(final_result_lasso_ridge)
+
+
+
+
+
+
