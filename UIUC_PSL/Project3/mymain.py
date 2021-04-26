@@ -2,16 +2,16 @@ import os
 import re
 import argparse
 
+import numpy as np
 import pandas as pd
 from bs4 import BeautifulSoup
-
 import nltk
+
 nltk.download('stopwords')
 
 from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.linear_model import LogisticRegression
-import numpy as np
 from sklearn.model_selection import GridSearchCV
 
 # FOLDER = '/Users/fanyang/Dropbox/uiuc/cs598/UIUC_SPL/UIUC_PSL/Project3/'; TEST_FILE_NAME = 'test_0.csv'; TRAIN_FILE_NAME = 'train_0.csv'
@@ -126,5 +126,9 @@ test_data_features = test_data_features.toarray()
 
 # test auc
 pred_test_y = model.predict_proba(test_data_features)[:, 1]
+# df_y_test = pd.read_csv(os.path.join(FOLDER, 'test_y_0.csv'))
+# print(metrics.roc_auc_score(df_y_test['sentiment'], pred_test_y))
+
+
 df_test['prob'] = pred_test_y
 df_test[['id', 'prob']].to_csv(os.path.join(FOLDER, 'mysubmission.txt'), columns=['id', 'prob'], index=None, sep='\t')
