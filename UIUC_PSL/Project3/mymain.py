@@ -92,7 +92,7 @@ X = train_data_features
 y = df_train['sentiment']
 
 ################################################################
-# run ridge model to select words
+# run ridge model
 ridge = LogisticRegression(penalty='l2', solver='liblinear')
 alphas = np.logspace(-2, 0, 10)
 tuned_parameters = [{'C': alphas}]
