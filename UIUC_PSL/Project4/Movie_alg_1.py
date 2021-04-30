@@ -5,7 +5,7 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 1000)
 pd.set_option('display.max_colwidth', 40)
 
-
+# FOLDER = '/Users/yafa/Dropbox/Library/UIUC_PSL/UIUC_PSL/Project4/'
 FOLDER = '/Users/fanyang/Dropbox/uiuc/cs598/UIUC_SPL/UIUC_PSL/Project4/'
 data = 'movies.csv'
 df_movie = pd.read_csv(os.path.join(FOLDER, data))
