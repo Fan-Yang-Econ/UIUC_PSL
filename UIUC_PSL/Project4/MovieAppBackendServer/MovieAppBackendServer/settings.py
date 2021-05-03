@@ -25,7 +25,7 @@ SECRET_KEY = '-b1gb^zz!wix6mexvs7b@l@7bg(638t1ikjx^lt88!c+37w(gt'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['movieratingbackend']
 
 
 # Application definition
