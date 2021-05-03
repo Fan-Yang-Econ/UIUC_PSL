@@ -42,7 +42,7 @@ for trainset, testset in kf.split(rating_data):
         # predictions = algo.test(testset)
         # accuracy.rmse(predictions, verbose=True)
 
-        param_grid = {'n_factors': [50, 100, 150],
+        param_grid = {'n_factors': [50, 100],
                       'lr_all': [0.002, 0.005, 0.2],
                       'reg_all': [0.02, 0.2],
                       'n_epochs': [10, 20]
