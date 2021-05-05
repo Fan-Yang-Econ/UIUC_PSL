@@ -8,6 +8,7 @@ import os
 from surprise import KNNBasic, KNNWithZScore, KNNWithMeans, accuracy
 from surprise.model_selection import KFold, GridSearchCV
 import numpy as np
+from surprise import similarities
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 1000)
@@ -121,5 +122,37 @@ print('Time: ', stop - start)
 
 
 
+# find K-nearest neighbors
+dic_50NN = {}
+movieID_list = df_rating['MovieID'].unique().tolist()
+# best_k =50
+full_train = rating_data.build_full_trainset()
+algo = KNNWithMeans(k = best_k, sim_options = sim_options)
+algo.fit(full_train)
 
+noNN_movie_list = []
+for movie in movieID_list:
+    movie_inner_iid = full_train.to_inner_iid(movie)
+    if trainset.knows_item(movie_inner_iid):
+        # input output both are inner iid
+        k_nn = algo.get_neighbors(movie_inner_iid, k=best_k)
+        dic_50NN[movie_inner_iid] = k_nn
+    else:
+        # dic_50NN[movie] = []
+        noNN_movie_list.append(movie_inner_iid)
 
+dic_i_in_j_NN = {}
+for i in dic_50NN.keys():
+    for j, movie_list in dic_50NN.items():
+        if i in movie_list:
+            if i not in dic_i_in_j_NN:
+                dic_i_in_j_NN[i] = [j]
+            else:
+                dic_i_in_j_NN[i].append(j)
+
+# test1 = list(dic_i_in_j_NN.keys())
+# test2 = list(dic_50NN.keys())
+# [i for i in test2 if i not in test1]
+algo.compute_similarities()
+sim_matrix = algo.sim
+# matrix index should be inner iid
