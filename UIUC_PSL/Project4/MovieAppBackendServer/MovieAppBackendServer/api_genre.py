@@ -1,5 +1,6 @@
 import logging
 import json
+
 from django.http import HttpResponse
 
 GENRE_SUMMARY_DICT = {'Action': [260, 1196, 1210, 480, 2028], 'Adventure': [260, 1196, 1210, 480, 1580], 'Animation': [1, 2987, 2355, 3114, 588],
@@ -11,34 +12,34 @@ GENRE_SUMMARY_DICT = {'Action': [260, 1196, 1210, 480, 2028], 'Adventure': [260,
 
 
 def api_genre(request):
-	"""
+    """
 
-	from pprint import pprint
-	from PyHelpers import set_logging; set_logging(10)
+    from pprint import pprint
+    from PyHelpers import set_logging; set_logging(10)
 
-	import os
-	os.environ.setdefault("DJANGO_SETTINGS_MODULE", "MovieAppBackendServer.settings")
+    import os
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "MovieAppBackendServer.settings")
 
-	from django.test import RequestFactory
-	from django.conf import settings
+    from django.test import RequestFactory
+    from django.conf import settings
 
-	settings.configure()
-	request_factory = RequestFactory()
+    settings.configure()
+    request_factory = RequestFactory()
 
-	genre_name = 'Action'
-	page = 1
-	request = request_factory.get(f'http://127.0.0.1:7000/api_genre?genre_name={genre_name}')
+    genre_name = 'Action'
+    page = 1
+    request = request_factory.get(f'http://127.0.0.1:7000/api_genre?genre_name={genre_name}')
 
-	:param request:
-	:return:
-	"""
-	logging.info(request.GET)
+    :param request:
+    :return:
+    """
+    logging.info(request.GET)
 
-	genre_name = request.GET.get('genre_name')
+    genre_name = request.GET.get('genre_name')
 
-	response = HttpResponse(
-		json.dumps(GENRE_SUMMARY_DICT[genre_name]),
-		content_type="text/plain")
-	response['Access-Control-Allow-Origin'] = '*'
+    response = HttpResponse(
+        json.dumps(GENRE_SUMMARY_DICT[genre_name]),
+        content_type="text/plain")
+    response['Access-Control-Allow-Origin'] = '*'
 
-	return response
+    return response

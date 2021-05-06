@@ -23,9 +23,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = '-b1gb^zz!wix6mexvs7b@l@7bg(638t1ikjx^lt88!c+37w(gt'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
-ALLOWED_HOSTS = ['movieratingbackend']
+ALLOWED_HOSTS = []
 
 
 # Application definition
