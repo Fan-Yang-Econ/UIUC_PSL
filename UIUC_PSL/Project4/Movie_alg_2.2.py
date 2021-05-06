@@ -149,6 +149,9 @@ for i in dic_50NN.keys():
                 dic_i_in_j_NN[i] = [j]
             else:
                 dic_i_in_j_NN[i].append(j)
+# test_list = []
+# for j_list in dic_i_in_j_NN.values():
+#     test_list.append(len(j_list))
 
 # test1 = list(dic_i_in_j_NN.keys())
 # test2 = list(dic_50NN.keys())
@@ -156,3 +159,39 @@ for i in dic_50NN.keys():
 algo.compute_similarities()
 sim_matrix = algo.sim
 # matrix index should be inner iid
+record_list = []
+for i in dic_i_in_j_NN.keys():
+    i_raw_id = full_train.to_raw_iid(i)
+    for j in dic_i_in_j_NN[i]:
+        sim = sim_matrix[i,j]
+        j_raw_id = full_train.to_raw_iid(j)
+        record = {'MovieID': i_raw_id,
+                  'Whose_NN': j_raw_id,
+                  'similarity': sim}
+        record_list.append(record)
+# pd.DataFrame.from_dict(final_result)
+# avg rating for each movie
+
+
+avg_rating = df_rating.groupby('MovieID')['Rating'].mean()
+# std_rating = df_rating.groupby('MovieID')['Rating'].std()
+
+rating_movie = [2905, 2019, 858, 1198, 260]
+rating_result = [1, 1, 1, 1, 1]
+# n = len(rating_result)
+# not impacted movie
+movieID_list = df_rating['MovieID'].unique().tolist()
+pred_list = []
+for movie in movieID_list:
+    movie_inner_iid = full_train.to_inner_iid(movie)
+    if not bool(set(dic_50NN[movie_inner_iid]) & set(rating_movie)):
+        pred_rating = avg_rating.loc[movie]
+        pred_record = {'MovieID' : movie,
+                       'pred': pred_rating}
+        pred_list.append(pred_record)
+    else:
+
+
+
+
+
