@@ -1,0 +1,38 @@
+@PADDING_W_sm: 50px;
+
+
+// Not let the landing page scroll at all
+.landingPageDiv {
+  min-height: 100%;
+  position: absolute;
+  min-width: 100%
+}
+
+
+.landing_search_box {
+  margin-top: 400px;
+  margin-bottom: 400px;
+  // be center trick: set to auto
+  margin-right: auto;
+  margin-left: auto;
+  max-width: 600px;
+}
+
+
+// // Small devices (landscape phones, 576px and up)
+//@media (min-width: 576px) { ... }
+//
+//// Medium devices (tablets, 768px and up)
+//@media (min-width: 768px) { ... }
+//
+//// Large devices (desktops, 992px and up)
+//@media (min-width: 992px) { ... }
+//
+//// Extra large devices (large desktops, 1200px and up)
+//@media (min-width: 1200px) { ... }
+@media (max-width: 992px) {
+  .landing_search_box {
+    margin-right: @PADDING_W_sm;
+    margin-left: @PADDING_W_sm;
+  }
+}

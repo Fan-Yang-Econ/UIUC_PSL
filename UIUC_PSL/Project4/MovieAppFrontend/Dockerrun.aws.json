@@ -1,0 +1,26 @@
+{
+  "AWSEBDockerrunVersion": 2,
+  "containerDefinitions": [
+    {
+      "name": "movieratingbackend",
+      "image": "060259987605.dkr.ecr.us-east-1.amazonaws.com/movie_rating_backend:latest",
+      "essential": true,
+      "memory": 256
+    },
+    {
+      "name": "movie_rating_app",
+      "image": "060259987605.dkr.ecr.us-east-1.amazonaws.com/movie_rating_app:latest",
+      "essential": true,
+      "memory": 256,
+      "links": [
+        "movieratingbackend"
+      ],
+       "portMappings": [
+        {
+          "hostPort": 80,
+          "containerPort": 8080
+        }
+      ]
+    }
+  ]
+}

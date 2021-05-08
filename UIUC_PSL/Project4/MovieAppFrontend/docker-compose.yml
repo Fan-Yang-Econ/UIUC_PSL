@@ -1,0 +1,8 @@
+version: '3'
+services:
+  movieratingbackend:
+    image: "060259987605.dkr.ecr.us-east-1.amazonaws.com/movie_rating_backend:latest"
+  movie_rating_app:
+    image: "060259987605.dkr.ecr.us-east-1.amazonaws.com/movie_rating_app:latest"
+    ports:
+      - 80:8080

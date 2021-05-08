@@ -51,7 +51,7 @@ CMD ["uwsgi", "--show-config"]
 
 
 
-# ===========
-#docker image build -t movie_rating_backend:latest .
-#docker container rm movie_backend_container
-#docker run -p 7000:7000 --name movie_backend_container --hostname movieratingbackend movie_rating_backend:latest
+# ~~~ commands to start ~~~
+# docker image build -t movie_rating_backend:latest .
+# docker container rm movie_backend_container
+# docker run -p 7000:7000 --name movie_backend_container --hostname movieratingbackend movie_rating_backend:latest

@@ -1,0 +1,46 @@
+{
+	"name": "warrens_fundamental",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"dev": "next dev",
+		"build": "next build",
+		"start": "next start"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"dependencies": {
+		"@ant-design/icons": "^4.1.0",
+		"@next/bundle-analyzer": "10.0.4",
+		"@zeit/next-css": "^1.0.1",
+		"@zeit/next-less": "^1.0.1",
+		"antd": "^4.14.0",
+		"aws-sdk": "^2.893.0",
+		"babel-plugin-import": "^1.13.0",
+		"less": "^4.0.0",
+		"less-vars-to-js": "^1.3.0",
+		"next": "^10.0.9",
+		"next-compose-plugins": "^2.2.1",
+		"next-router-events": "^2.1.0",
+		"pm2": "^4.5.6",
+		"react": "^16.12.0",
+		"react-dom": "^16.12.0",
+		"react-promise-tracker": "^2.1.0",
+		"typescript-eslint": "0.0.1-alpha.0",
+		"url-join": "^4.0.1",
+		"webpack": "^4.3.0",
+		"webpack-filter-warnings-plugin": "^1.2.1"
+	},
+	"devDependencies": {
+		"@types/node": "^14.6.0",
+		"@types/react": "^17.0.0",
+		"@typescript-eslint/eslint-plugin": "^3.10.1",
+		"@typescript-eslint/parser": "^3.10.1",
+		"babel-eslint": "^10.0.3",
+		"eslint": "^6.8.0",
+		"eslint-plugin-react": "^7.17.0",
+		"typescript": "^4.1.3"
+	}
+}
