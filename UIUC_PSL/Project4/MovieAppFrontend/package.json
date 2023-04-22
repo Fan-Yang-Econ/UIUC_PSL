@@ -24,7 +24,7 @@
 		"next": "^11.1.1",
 		"next-compose-plugins": "^2.2.1",
 		"next-router-events": "^2.1.0",
-		"pm2": "^4.5.6",
+		"pm2": "^5.3.0",
 		"react": "^16.12.0",
 		"react-dom": "^16.12.0",
 		"react-promise-tracker": "^2.1.0",
